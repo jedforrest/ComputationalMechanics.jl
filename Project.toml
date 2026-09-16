@@ -1,0 +1,13 @@
+name = "ComputationalMechanics"
+uuid = "f2eecaa8-c432-4647-8a69-3012f448ed87"
+authors = ["jedforrest <forrest.j@unimelb.edu.au> and contributors"]
+version = "101.0.0-d0.1"
+
+[compat]
+julia = "1.10"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
