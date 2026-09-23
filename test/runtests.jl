@@ -2,5 +2,5 @@ using ComputationalMechanics
 using Test
 
 @testset "ComputationalMechanics.jl" begin
-    # Write your tests here.
+    @testset "Types" include("test_types.jl")
 end

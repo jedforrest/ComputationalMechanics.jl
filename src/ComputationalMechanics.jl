@@ -1,5 +1,9 @@
 module ComputationalMechanics
 
-# Write your package code here.
+using Graphs, MetaGraphsNext
+
+include("states.jl")
+include("epsilonmachine.jl")
+include("process.jl")
 
 end
