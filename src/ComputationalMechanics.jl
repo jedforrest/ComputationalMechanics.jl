@@ -1,5 +1,8 @@
 module ComputationalMechanics
 
+using Random
+using StatsBase
+using Distributions
 using Graphs, MetaGraphsNext
 
 include("states.jl")

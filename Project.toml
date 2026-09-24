@@ -4,12 +4,16 @@ version = "1.0.0-dev"
 authors = ["jedforrest <forrest.j@unimelb.edu.au> and contributors"]
 
 [deps]
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 MetaGraphsNext = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
+Distributions = "0.25.131"
 Graphs = "1.15.0"
 MetaGraphsNext = "0.8.0"
+StatsBase = "0.34.13"
 julia = "1.10"
 
 [extras]
