@@ -30,5 +30,5 @@ Base.show(io::IO, p::Probability) = print(io, "P($(p.value))")
 
 #-------------------------------------------------------------------------------------------
 
-entropy(p) = -(p * log2(p))
-entropy(ps) = -sum(p * log2(p) for p in ps if p > 0)
+entropy(p::Real) = -(p * log2(p))
+entropy(ps::AbstractArray{<:Real}) = -sum(p * log2(p) for p in ps if p > 0)

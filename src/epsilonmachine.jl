@@ -95,7 +95,8 @@ topological_complexity(em::EpsilonMachine) = log2(num_states(em))
 
 # Core measures TODO
 function statistical_complexity(em::EpsilonMachine)
-    entropy(values(distribution(em)))
+    dist = distribution(em)
+    entropy(collect(values(dist)))
 end
 
 function entropy_rate(em::EpsilonMachine)
@@ -119,6 +120,8 @@ function entropy_rate(em::EpsilonMachine)
     return h
 end
 
+# TODO
 # excess_entropy(em::EpsilonMachine)
 
+# TODO
 # crypticity(em::EpsilonMachine) = statistical_complexity(em) - excess_entropy(em)

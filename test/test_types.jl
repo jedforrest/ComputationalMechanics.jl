@@ -59,14 +59,13 @@ end
     W = transition_matrix(em)
     @test size(W) == (2, 2)
 
-    @test _is_unifilar(em)
+    @test ComputationalMechanics._is_unifilar(em)
 end
 
 
 @testset "Unifilarity detection" begin
     non_unifilar_states = [CausalState("A", [Transition(0, 0.5, "A"), Transition(0, 0.5, "B")])]
-    em_not_unifilar = EpsilonMachine([0, 1], non_unifilar_states, "A")
-    @test !_is_unifilar(em_not_unifilar)
+    @test_throws ArgumentError EpsilonMachine([0, 1], non_unifilar_states, "A")
 end
 
 
