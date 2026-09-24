@@ -18,6 +18,9 @@ function Base.show(io::IO, t::Transition)
     print(io, "$(t.probability)|$(t.symbol) -> $(t.target)")
 end
 
+Base.eltype(::Type{Transition{T}}) where T = T
+Base.eltype(::Transition{T}) where T = T
+
 #-------------------------------------------------------------------------------------------
 struct CausalState{T}
     label::String
@@ -34,6 +37,9 @@ struct CausalState{T}
         new{T}(label, transitions)
     end
 end
+
+Base.eltype(::Type{CausalState{T}}) where T = T
+Base.eltype(::CausalState{T}) where T = T
 
 label(cs::CausalState) = cs.label
 transitions(cs::CausalState) = cs.transitions
