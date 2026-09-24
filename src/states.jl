@@ -1,33 +1,3 @@
-struct Probability <: Real
-    value::Float64
-
-    function Probability(value::Real)
-        0.0 <= value <= 1.0 || throw(ArgumentError("Probability must be in [0, 1], got $value"))
-        new(Float64(value))
-    end
-end
-
-# Promotion
-Base.convert(::Type{Probability}, x::Real) = Probability(x)
-Base.convert(::Type{T}, p::Probability) where {T<:Real} = convert(T, p.value)
-Base.promote_rule(::Type{Probability}, ::Type{<:Real}) = Float64
-
-# Comparison
-Base.:(==)(p::Probability, q::Probability) = p.value == q.value
-Base.isless(p::Probability, q::Probability) = isless(p.value, q.value)
-
-# Convenience
-Base.Float64(p::Probability) = p.value
-
-# Arithmetic
-Base.:+(p::Probability, q::Probability) = Probability(p.value + q.value)
-Base.:-(p::Probability, q::Probability) = Probability(p.value - q.value)
-Base.:*(p::Probability, q::Probability) = Probability(p.value * q.value)
-Base.:/(p::Probability, q::Probability) = Probability(p.value / q.value)
-
-Base.show(io::IO, p::Probability) = print(io, "P(", p.value, ")")
-
-#-------------------------------------------------------------------------------------------
 struct Transition{T}
     symbol::T
     probability::Probability
@@ -53,7 +23,16 @@ struct CausalState{T}
     label::String
     transitions::Vector{Transition{T}}
 
-    # TODO validation
+    function CausalState(
+        label::AbstractString,
+        transitions::AbstractVector{Transition{T}}
+    ) where T
+        # TODO validation
+        total_prob = sum(tr.probability.value for tr in transitions)
+        total_prob ≈ 1 || throw(ArgumentError("Total probability of transitions must sum to 1, got $total_prob"))
+
+        new{T}(label, transitions)
+    end
 end
 
 label(cs::CausalState) = cs.label
@@ -74,6 +53,14 @@ function sample_next_transition(cs::CausalState)
     trs = transitions(cs)
     W = Weights(Float64.(probability.(trs)))
     sample(trs, W)
+end
+
+function emission_distribution(cs::CausalState{T}) where T
+    dist = Dict{T,Probability}()
+    for t in transitions(cs)
+        dist[t.symbol] = get(dist, t.symbol, 0.) + t.probability
+    end
+    return dist
 end
 
 #-------------------------------------------------------------------------------------------

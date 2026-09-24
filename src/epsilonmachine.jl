@@ -13,9 +13,13 @@ struct EpsilonMachine{T}
         exact_distribution=nothing
     ) where T
         # TODO validation
-
         graph = transition_graph(states)
-        new{T}(Set(alphabet), states, startstate, graph, exact_distribution)
+        em = new{T}(Set(alphabet), states, startstate, graph, exact_distribution)
+
+        _is_unifilar(em) || throw(ArgumentError(
+            "ε-Machine is not unifilar: each state should have one transition per symbol"))
+
+        em
     end
 end
 
@@ -29,11 +33,10 @@ function EpsilonMachine(
     EpsilonMachine(alphabet, states, startstate)
 end
 
-
 #-------------------------------------------------------------------------------------------
 
 function Base.show(io::IO, em::EpsilonMachine)
-    str = "EpsilonMachine$(collect(em.alphabet))"
+    str = "ε-Machine$(collect(em.alphabet))"
     for s in em.states
         str *= "\n$s"
     end
@@ -53,8 +56,33 @@ Base.IteratorSize(::Type{<:EpsilonMachine}) = Base.IsInfinite()
 Base.eltype(::Type{EpsilonMachine{T}}) where T = T
 Base.eltype(::EpsilonMachine{T}) where T = T
 
+Base.getindex(em::EpsilonMachine, label) = em.graph[label]
+
 #-------------------------------------------------------------------------------------------
 transition_matrix(em::EpsilonMachine) = Float64.(Graphs.weights(em.graph))
+
+function distribution(em::EpsilonMachine, exact=true)
+    if exact == true && !isnothing(em.exact_distribution)
+        return em.exact_distribution
+    else
+        # return em.inferred_distribution
+        return nothing
+    end
+end
+
+#-------------------------------------------------------------------------------------------
+
+function _is_unifilar(em::EpsilonMachine)
+    for state in em.states
+        seen = []
+        for sym in symbols(state)
+            sym in seen && return false
+            push!(seen, sym)
+        end
+    end
+    return true
+end
+
 
 # Structural measures
 num_states(em::EpsilonMachine) = length(em.states)
@@ -65,16 +93,32 @@ alphabet_size(em::EpsilonMachine) = length(em.alphabet)
 
 topological_complexity(em::EpsilonMachine) = log2(num_states(em))
 
-
 # Core measures TODO
-statistical_complexity(em::EpsilonMachine)
+function statistical_complexity(em::EpsilonMachine)
+    entropy(values(distribution(em)))
+end
 
-entropy_rate(em::EpsilonMachine)
+function entropy_rate(em::EpsilonMachine)
+    dist = distribution(em)
+    h = 0.
 
-excess_entropy(em::EpsilonMachine)
+    for state in em.states
+        state_p = get(dist, state.label, 0.)
+        state_p <= 0. && continue
 
-crypticity(em::EpsilonMachine)
+        state_dist = emission_distribution(state)
+        state_h = 0.
+        for prob in values(state_dist)
+            if prob > 0
+                state_h += entropy(prob)
+            end
+        end
+        h += state_p * state_h
+    end
 
+    return h
+end
 
-# TODO summary
-print_summary(em::EpsilonMachine)
+# excess_entropy(em::EpsilonMachine)
+
+# crypticity(em::EpsilonMachine) = statistical_complexity(em) - excess_entropy(em)

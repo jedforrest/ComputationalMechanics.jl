@@ -2,7 +2,7 @@
 
 function golden_mean_process(p = 0.5)
     states = [
-        CausalState("A", [Transition(0, p, "A"), Transition(1, p, "B")])
+        CausalState("A", [Transition(0, p, "A"), Transition(1, 1 - p, "B")])
         CausalState("B", [Transition(0, 1, "A")])
     ]
     distribution = Dict(
@@ -15,7 +15,7 @@ end
 
 function even_process(p = 0.5)
     states = [
-        CausalState("A", [Transition(0, p, "A"), Transition(1, p, "B")])
+        CausalState("A", [Transition(0, p, "A"), Transition(1, 1 - p, "B")])
         CausalState("B", [Transition(1, 1, "A")])
     ]
     distribution = Dict(
