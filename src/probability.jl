@@ -1,3 +1,11 @@
+"""
+    Probability(value::Real)
+
+A probability value constrained to the interval [0, 1].
+
+This is a lightweight real-valued wrapper used to keep probability constraints explicit
+at construction time.
+"""
 struct Probability <: Real
     value::Float64
 
@@ -6,6 +14,8 @@ struct Probability <: Real
         new(Float64(value))
     end
 end
+
+## Base extensions
 
 # Promotion
 Base.convert(::Type{Probability}, x::Real) = Probability(x)
@@ -28,7 +38,17 @@ Base.:/(p::Probability, q::Probability) = Probability(p.value / q.value)
 
 Base.show(io::IO, p::Probability) = print(io, "P($(p.value))")
 
-#-------------------------------------------------------------------------------------------
+## Entropy
+"""
+    entropy(p::Real)
 
+Compute the binary entropy of a single probability `p`.
+"""
 entropy(p::Real) = -(p * log2(p))
+
+"""
+    entropy(ps::AbstractArray{<:Real})
+
+Compute the Shannon entropy of a probability distribution represented by a vector of probabilities.
+"""
 entropy(ps::AbstractArray{<:Real}) = -sum(p * log2(p) for p in ps if p > 0)
