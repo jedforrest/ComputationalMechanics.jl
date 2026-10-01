@@ -9,21 +9,20 @@ and a transition graph.
 - `states`: causal states comprising the machine.
 - `startstate`: label of the start state.
 - `graph`: transition graph of the machine.
-- `exact_distribution`: optional exact distribution over states.
+- `stationary_distribution`: optional stationary distribution over states.
 """
 struct EpsilonMachine{T}
     alphabet::Vector{T}
     states::Vector{CausalState{T}}
     startstate::String
     graph::MetaGraph
-    exact_distribution::Union{Dict{String,Probability},Nothing}
-    # inferred_distribution::Union{Dict{String,Probability},Nothing}
+    stationary_distribution::Union{Dict{String,Probability},Nothing}
 
     """
-        EpsilonMachine(alphabet, states, startstate, exact_distribution=nothing)
+        EpsilonMachine(alphabet, states, startstate, stationary_distribution=nothing)
 
     Construct an ε-machine from an alphabet, a vector of causal states, a start state label,
-    and an optional exact distribution.
+    and an optional stationary distribution.
 
     Throws `ArgumentError` if the machine is not unifilar.
     """
@@ -31,12 +30,12 @@ struct EpsilonMachine{T}
         alphabet::AbstractVector{T},
         states::AbstractVector{<:CausalState{T}},
         startstate::AbstractString,
-        exact_distribution=nothing
+        stationary_distribution=nothing
     ) where T
         # TODO validation
         alphabet = sort(unique(alphabet))
         graph = transition_graph(states)
-        em = new{T}(alphabet, states, startstate, graph, exact_distribution)
+        em = new{T}(alphabet, states, startstate, graph, stationary_distribution)
 
         _is_unifilar(em) || throw(ArgumentError(
             "ε-Machine is not unifilar: each state should have one transition per symbol"))
@@ -57,7 +56,7 @@ function EpsilonMachine(
     startstate::AbstractString
 ) where T
 
-    alphabet = collect(Iterators.flatten(symbols.(states)))
+    alphabet = sort(collect(Iterators.flatten(symbols.(states))))
     EpsilonMachine(alphabet, states, startstate)
 end
 
@@ -87,6 +86,11 @@ Base.eltype(::EpsilonMachine{T}) where T = T
 Base.getindex(em::EpsilonMachine, label) = em.graph[label]
 
 ##
+
+get_states(em::EpsilonMachine) = em.states
+
+get_transitions(em::EpsilonMachine) = collect(Iterators.flatten(transitions.(em.states)))
+
 """
     transition_matrix(em::EpsilonMachine)
 
@@ -95,21 +99,11 @@ Return the weighted transition matrix of the ε-machine graph.
 transition_matrix(em::EpsilonMachine) = Float64.(Graphs.weights(em.graph))
 
 """
-    distribution(em::EpsilonMachine, exact=true)
+    distribution(em::EpsilonMachine)
 
-Return the exact state distribution when available and `exact == true`.
-Otherwise return the inferred_distribution (if it exists).
-
-This is used to provide a machine-specific distribution when exact statistics are known.
+Return the state distribution when available.
 """
-function distribution(em::EpsilonMachine, exact=true)
-    if exact == true && !isnothing(em.exact_distribution)
-        return em.exact_distribution
-    else
-        # return em.inferred_distribution
-        return nothing
-    end
-end
+distribution(em::EpsilonMachine) = em.stationary_distribution
 
 """
 TODO: docstring
@@ -145,14 +139,14 @@ end
 
 Return the number of causal states in the ε-machine.
 """
-num_states(em::EpsilonMachine) = length(em.states)
+num_states(em::EpsilonMachine) = length(get_states(em))
 
 """
     num_transitions(em::EpsilonMachine)
 
 Return the number of transitions in the ε-machine graph.
 """
-num_transitions(em::EpsilonMachine) = ne(em.graph)
+num_transitions(em::EpsilonMachine) = length(get_transitions(em))
 
 """
     alphabet_size(em::EpsilonMachine)

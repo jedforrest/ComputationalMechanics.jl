@@ -15,9 +15,9 @@ struct Transition{T}
     probability::Probability
     target::String
 
-    function Transition(symbol::T, prob::Real, target::AbstractString) where T
+    function Transition(symbol::T, prob::Real, target) where T
         # TODO validation
-        new{T}(symbol, Probability(prob), target)
+        new{T}(symbol, Probability(prob), string(target))
     end
 end
 
@@ -75,14 +75,14 @@ struct CausalState{T}
     transitions::Vector{Transition{T}}
 
     function CausalState(
-        label::AbstractString,
+        label,
         transitions::AbstractVector{Transition{T}}
     ) where T
         # TODO validation
         total_prob = sum(tr.probability.value for tr in transitions)
         total_prob ≈ 1 || throw(ArgumentError("Total probability of transitions must sum to 1, got $total_prob"))
 
-        new{T}(label, transitions)
+        new{T}(string(label), transitions)
     end
 end
 

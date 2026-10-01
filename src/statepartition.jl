@@ -3,20 +3,14 @@
 
 Bidirectional mapping between histories and the causal states CSSR assigns them
 to, used by `_sufficiency_phase`, `_determinism_phase`, and `_build_machine`.
-
-State ids are deliberately untyped (`Any`): most are `Int`s handed out by
-`new_state_id!`, but `_build_machine`'s empty-partition fallback assigns the
-empty history directly to the string `"S0"`, so the id type can't be pinned to
-`Int` alone. Histories are stored as given (typically `Vector{A}` for whatever
-symbol type `A` the run uses); any `isequal`/`hash`-compatible value works.
 """
 mutable struct StatePartition
-    history_to_state::Dict{Any,Any}
-    state_to_histories::Dict{Any,Vector{Any}}
+    history_to_state::Dict{String,Int}
+    state_to_histories::Dict{Int,Vector{String}}
     next_id::Int
 end
 
-StatePartition() = StatePartition(Dict{Any,Any}(), Dict{Any,Vector{Any}}(), 0)
+StatePartition() = StatePartition(Dict{String,Int}(), Dict{Int,Vector{String}}(), 0)
 
 """
     new_state_id!(partition) -> Int
@@ -49,7 +43,7 @@ function assign!(partition::StatePartition, history, state_id)
     end
 
     partition.history_to_state[history] = state_id
-    new_list = get!(() -> Any[], partition.state_to_histories, state_id)
+    new_list = get!(() -> String[], partition.state_to_histories, state_id)
     push!(new_list, history)
     return partition
 end
@@ -63,17 +57,17 @@ assigned yet.
 get_state(partition::StatePartition, history) = get(partition.history_to_state, history, nothing)
 
 """
-    get_histories(partition, state_id) -> Vector{Any}
+    get_histories(partition, state_id) -> Vector{String}
 
 All histories currently assigned to `state_id`, or an empty vector if the id
 doesn't exist (e.g. it was merged away). Returns the partition's own internal
 vector -- treat it as read-only; mutate via `assign!`/`merge_states!` instead.
 """
 get_histories(partition::StatePartition, state_id) =
-    get(partition.state_to_histories, state_id, Any[])
+    get(partition.state_to_histories, state_id, String[])
 
 """
-    state_ids(partition) -> Vector{Any}
+    state_ids(partition) -> Vector{String}
 
 Every state id that currently has at least one assigned history.
 """
@@ -89,11 +83,11 @@ No-op if `ids` has fewer than 2 elements.
 function merge_states!(partition::StatePartition, ids::AbstractVector)
     length(ids) < 2 && return partition
     survivor = first(ids)
-    survivor_list = get!(() -> Any[], partition.state_to_histories, survivor)
+    survivor_list = get!(() -> String[], partition.state_to_histories, survivor)
 
     for id in ids[2:end]
         id == survivor && continue
-        histories = get(partition.state_to_histories, id, Any[])
+        histories = get(partition.state_to_histories, id, String[])
         for h in histories
             partition.history_to_state[h] = survivor
         end
@@ -113,7 +107,7 @@ without disturbing the partition `_sufficiency_phase` produced.
 function Base.copy(partition::StatePartition)
     return StatePartition(
         copy(partition.history_to_state),
-        Dict{Any,Vector{Any}}(k => copy(v) for (k, v) in partition.state_to_histories),
+        Dict{Int,Vector{String}}(k => copy(v) for (k, v) in partition.state_to_histories),
         partition.next_id,
     )
 end

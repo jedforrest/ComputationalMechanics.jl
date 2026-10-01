@@ -36,7 +36,7 @@ Base.:-(p::Probability, q::Probability) = Probability(p.value - q.value)
 Base.:*(p::Probability, q::Probability) = Probability(p.value * q.value)
 Base.:/(p::Probability, q::Probability) = Probability(p.value / q.value)
 
-Base.show(io::IO, p::Probability) = print(io, "P($(p.value))")
+Base.show(io::IO, p::Probability) = print(io, "P($(round(p.value, digits=2)))")
 
 ## Entropy
 """

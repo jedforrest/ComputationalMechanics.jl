@@ -1,16 +1,31 @@
 # This is based on emics implementation of CSSR
 abstract type InferenceAlgorithm end
 
+# TODO config values in this struct?
 struct CSSR <: InferenceAlgorithm end
 
 struct InferenceResult{T}
     machine::EpsilonMachine{T}
-    histories::Dict{String, Dict{T, Int}}
     sequence_length::Int
     max_history::Int
-    automaton::SuffixAutomaton{T}
+    min_count::Int
+    alpha::Float64
     alg::InferenceAlgorithm
 end
+
+function Base.show(io::IO, result::InferenceResult)
+    str = "Inference Result:\n"
+    str *= "  algorithm = $(typeof(result.alg))\n"
+    str *= "  sequence_length = $(result.sequence_length)\n"
+    str *= "  max_history = $(result.max_history)\n"
+    str *= "  max_history = $(result.min_count)\n"
+    str *= "  alpha = $(result.alpha)\n"
+    str *= "  causal_states = $(num_states(result.machine))\n"
+    str *= "  transitions = $(num_transitions(result.machine))"
+    print(io, str)
+end
+
+# TODO history stats type
 
 """
     infer_machine(alg::CSSR, sequence; alphabet=nothing)
@@ -22,10 +37,10 @@ function infer_machine(
     ::CSSR,
     sequence;
     alphabet=sort(unique(sequence)),
-    max_history = 6,
-    alpha = 0.05,
-    min_count = 5,
-    statistical_test = :chi2,  # chi2 | ks | g
+    max_history=6,
+    min_count=5,
+    alpha=0.05,
+    statistical_test=:chi2,  # chi2 | ks | g
     # max_iteratons = 1000,
     # post_merge = true,
     # merge_significance = 0.05
@@ -40,9 +55,9 @@ function infer_machine(
     n_syms = length(sequence)
     min_required = min_count * (max_history + 1) * 2
     n_syms < min_required && throw(ArgumentError(
-            "Provided sequence has $n_syms symbols,"*
+        "Provided sequence has $n_syms symbols, " *
             "but $min_required are required for the CSSR algorithm."
-        )
+    )
     )
 
     # Phase I: build suffix automaton on the sequence
@@ -53,27 +68,27 @@ function infer_machine(
     # TODO CONTINUE FROM HERE
     partition = _sufficiency_phase(history, alphabet, min_count)
 
-    return partition
-    # # Phase III: ensure determinism (merge equivalent states)
-    # partition = _determinism_phase(cfg, partition, tree)
+    # Phase III: ensure determinism (merge equivalent states)
+    partition = _determinism_phase(partition, history)
 
-    # machine = _build_machine(cfg, partition, tree, alph)
+    # Phase IV: build epsilon machine
+    machine = _build_machine(partition, history, alphabet, max_history)
 
-    # return InferenceResult(
-    #     machine,
-    #     history,
-    #     n_syms,
-    #     max_history,
-    #     automaton,
-    #     CSSR(),
-    # )
+    return InferenceResult(
+        machine,
+        n_syms,
+        max_history,
+        min_count,
+        alpha,
+        CSSR(),
+    )
 end
 
 # ------------------------------------------------------------------------------
 # Phase I: histories
 # ------------------------------------------------------------------------------
 
-    """
+"""
     history_stats(automaton::SuffixAutomaton{T}; max_depth) -> Dict{Vector{T}, Dict{T,Int}}
 
 Get CSSR history statistics directly from a `SuffixAutomata.jl` `SuffixAutomaton`.
@@ -88,11 +103,11 @@ function history_stats(automaton::SuffixAutomaton{T}; max_depth::Integer=5) wher
 
     for j in 1:n
         current = automaton.root
-        for len in 1:min(max_depth, n - j)      # stop one short of the end: a next symbol must exist
-            symbol = data[j + len - 1]
+        for len in 1:min(max_depth, n-j)      # stop one short of the end: a next symbol must exist
+            symbol = data[j+len-1]
             current = current.transitions[symbol]
-            h = join(data[j:(j + len - 1)])
-            nxt = data[j + len]
+            h = join(data[j:(j+len-1)])
+            nxt = data[j+len]
             dist = get!(Dict{T,Int}, stats, h)
             dist[nxt] = get(dist, nxt, 0) + 1
         end
@@ -111,29 +126,6 @@ end
 # ------------------------------------------------------------------------------
 # Phase II: sufficiency
 # ------------------------------------------------------------------------------
-
-
-# """
-#     _lookup(stats, automaton, h; max_depth) -> (count, next_symbol_counts) or nothing
-
-# `next_symbol_counts` is the `Dict` of how often each symbol followed `h`; `count`
-# is `sum(values(next_symbol_counts))`. Returns `nothing` if `h` never occurred
-# with a successor.
-# """
-# function _lookup(
-#     stats::Dict{String, Dict{A, Int}},
-#     h::AbstractVector{A};
-# ) where A
-#     dist = get(stats, h, nothing)
-#     dist === nothing && return nothing
-#     return sum(values(dist); init = 0), dist
-# end
-
-# ------------------------------------------------------------------------------
-# Phase II: sufficiency
-# ------------------------------------------------------------------------------
-include("statepartition.jl")
-
 """
     _sufficiency_phase(cfg, stats, automaton, alphabet)
 
@@ -142,7 +134,7 @@ include("statepartition.jl")
 deeper lookup than `cfg.max_history` (e.g. `cfg.max_history` is small relative
 to how much data you have) -- otherwise pass the automaton it came from.
 """
-function _sufficiency_phase(hist_stats::Dict{String, Dict{T, Int}}, alphabet, min_count) where T
+function _sufficiency_phase(hist_stats::Dict{String,Dict{T,Int}}, alphabet, min_count) where T
     partition = StatePartition()
 
     all_histories = String[]
@@ -152,7 +144,7 @@ function _sufficiency_phase(hist_stats::Dict{String, Dict{T, Int}}, alphabet, mi
     # hist_stats is a dict of histories to next-value distributions
     for (hist, dist) in hist_stats
         isempty(hist) && continue
-        count = sum(values(dist); init = 0)
+        count = sum(values(dist); init=0)
         count < min_count && continue
 
         push!(all_histories, hist)
@@ -181,12 +173,11 @@ function _sufficiency_phase(hist_stats::Dict{String, Dict{T, Int}}, alphabet, mi
     # Group synchronizing histories by distribution
     _group_by_distribution!(partition, sync_histories, hist_stats, min_count)
 
-    # # Assign non-synchronizing histories to state of their sync suffix
-    # TODO CONTINUE FROM HERE
-    # for h in nonsync_histories
-    #     state = _find_state_for_history(cfg, h, partition, hist_stats, automaton)
-    #     state === nothing || assign!(partition, h, state)
-    # end
+    # Assign non-synchronizing histories to state of their sync suffix
+    for h in nonsync_histories
+        state = _find_state_for_history(partition, h, hist_stats)
+        state === nothing || assign!(partition, h, state)
+    end
 
     return partition
 end
@@ -220,7 +211,7 @@ function _is_synchronizing_core(history, history_stats; alphabet, min_count)
         ext_dist = get(history_stats, extended, nothing)
 
         isnothing(ext_dist) && continue
-        count = sum(values(ext_dist); init = 0)
+        count = sum(values(ext_dist); init=0)
         count < min_count && continue
         push!(extension_dists, ext_dist)
     end
@@ -228,8 +219,8 @@ function _is_synchronizing_core(history, history_stats; alphabet, min_count)
     # Too few extensions to compare (e.g. max-depth histories with sparse data)
     length(extension_dists) < 2 && return true
 
-    for i in 1:(length(extension_dists) - 1)
-        for j in (i + 1):length(extension_dists)
+    for i in 1:(length(extension_dists)-1)
+        for j in (i+1):length(extension_dists)
             if distributions_differ(extension_dists[i], extension_dists[j])
                 return false
             end
@@ -240,12 +231,12 @@ end
 
 
 function distributions_differ(dist1::Dict{A,<:Integer}, dist2::Dict{A,<:Integer};
-        alpha::Real=0.001, statistical_test=:chi2) where A
+    alpha::Real=0.001, statistical_test=:chi2) where A
     # TODO could have multiple tests to choose from here
     if statistical_test == :chi2
         return chisq_differ(dist1, dist2, alpha)
-    # elseif statistical_test == :p
-    #     return proportion_differ(dist1, dist2, alpha)
+        # elseif statistical_test == :p
+        #     return proportion_differ(dist1, dist2, alpha)
     else
         throw(ArgumentError("$statistical_test is not a valid statistical test."))
     end
@@ -253,8 +244,8 @@ end
 
 
 function chisq_differ(dist1::Dict{A,<:Integer}, dist2::Dict{A,<:Integer}, alpha::Real) where A
-    n1 = sum(values(dist1); init = 0)
-    n2 = sum(values(dist2); init = 0)
+    n1 = sum(values(dist1); init=0)
+    n2 = sum(values(dist2); init=0)
     (n1 == 0 || n2 == 0) && return false
 
     symbols = collect(union(keys(dist1), keys(dist2)))
@@ -268,16 +259,16 @@ function chisq_differ(dist1::Dict{A,<:Integer}, dist2::Dict{A,<:Integer}, alpha:
     end
 
     # TODO worth including this warning?
-    grand_total = n1 + n2
-    n_low_expected = count(Iterators.product(1:2, 1:k)) do (i, j)
-        row_total = i == 1 ? n1 : n2
-        col_total = table[1, j] + table[2, j]
-        (row_total * col_total / grand_total) < 5
-    end
-    if n_low_expected / (2k) > 0.2
-        @warn "chisq_differ: >20% of cells have expected count < 5; " *
-              "the chi-squared approximation may be unreliable" n1 n2 k
-    end
+    # grand_total = n1 + n2
+    # n_low_expected = count(Iterators.product(1:2, 1:k)) do (i, j)
+    #     row_total = i == 1 ? n1 : n2
+    #     col_total = table[1, j] + table[2, j]
+    #     (row_total * col_total / grand_total) < 5
+    # end
+    # if n_low_expected / (2k) > 0.2
+    #     @warn "chisq_differ: >20% of cells have expected count < 5; " *
+    #         "the chi-squared approximation may be unreliable" n1 n2 k
+    # end
 
     return pvalue(ChisqTest(table)) < alpha
 end
@@ -305,7 +296,7 @@ end
 
 
 """Find a state for a non-synchronizing history, or `nothing` if none matches."""
-function _find_state_for_history(cfg::CSSRConfig, history, partition, stats, automaton)
+function _find_state_for_history(partition::StatePartition, history, hist_stats)
     # Longest proper suffix already assigned to a state
     for i in 2:length(history)
         state = get_state(partition, history[i:end])
@@ -313,13 +304,10 @@ function _find_state_for_history(cfg::CSSRConfig, history, partition, stats, aut
     end
 
     # Fall back to distribution matching
-    result = _lookup(stats, automaton, history; max_depth = cfg.max_history)
-    result === nothing && return nothing
-    _, dist = result
-
+    dist = hist_stats[history]
     for state_id in state_ids(partition)
-        state_dist = _state_distribution(state_id, partition, stats, automaton; max_depth = cfg.max_history)
-        if !distributions_differ(dist, state_dist, cfg.significance, cfg.test)
+        state_dist = _state_distribution(state_id, partition, hist_stats)
+        if !distributions_differ(dist, state_dist)
             return state_id
         end
     end
@@ -335,7 +323,7 @@ Group histories by distribution similarity, mutating `partition`.
 function _group_by_distribution!(
     partition::StatePartition,
     hists::AbstractVector{<:AbstractString},
-    hist_stats::Dict{String, Dict{A, Int}},
+    hist_stats::Dict{String,Dict{A,Int}},
     min_count::Int
 ) where A
     isempty(hists) && return partition
@@ -343,17 +331,17 @@ function _group_by_distribution!(
     entries = @NamedTuple{history::String, counts::Dict{A,Int}}[]
     for h in hists
         dist = hist_stats[h]
-        count = sum(values(dist); init = 0)
+        count = sum(values(dist); init=0)
         count < min_count && continue
-        push!(entries, (; history = h, counts = copy(dist)))
+        push!(entries, (; history=h, counts=copy(dist)))
     end
     isempty(entries) && return partition
 
     # Pairwise test of consecutive histories with a lenient threshold; more robust
     # than testing against a large pooled distribution.
     homog_sig = 0.01
-    all_homogeneous = all(1:min(length(entries) - 1, 10)) do i
-        !distributions_differ(entries[i].counts, entries[i + 1].counts; alpha=homog_sig)
+    all_homogeneous = all(1:min(length(entries)-1, 10)) do i
+        !distributions_differ(entries[i].counts, entries[i+1].counts; alpha=homog_sig)
     end
 
     # Also reject if any symbol's proportion varies too much across histories
@@ -396,7 +384,7 @@ function _group_by_distribution!(
 
     for e in @view entries[2:end]
         i = findfirst(group_reps) do rep
-            !distributions_differ(e.counts, rep; alpha= group_sig)
+            !distributions_differ(e.counts, rep; alpha=group_sig)
         end
         if i === nothing
             push!(groups, [e.history])
@@ -416,48 +404,22 @@ function _group_by_distribution!(
 end
 
 # ------------------------------------------------------------------------------
-# Shared helper (also used by Phase III / machine construction, if you carry
-# the same (stats, automaton) swap through there)
+# Helpers (also used by Phase III)
 # ------------------------------------------------------------------------------
 
 """Aggregate next-symbol counts over all histories assigned to `state_id`."""
 function _state_distribution(
     state_id,
     partition,
-    stats::HistoryStats{A},
-    automaton;
-    max_depth::Integer,
+    hist_stats::Dict{String,Dict{A,Int}},
 ) where {A}
     aggregate = Dict{A,Int}()
     for h in get_histories(partition, state_id)
-        result = _lookup(stats, automaton, h; max_depth)
-        result === nothing && continue
-        _, dist = result
+        dist = hist_stats[h]
         mergewith!(+, aggregate, dist)
     end
     return aggregate
 end
-
-_prepend(a, history) = pushfirst!(copy(history), a)
-
-#=
-Call site in `infer` (cssr.jl) changes from:
-
-    tree = SuffixTree{A}(; max_depth = cfg.max_history, alphabet = alph)
-    build_from_sequence!(tree, symbols)
-    partition = _sufficiency_phase(cfg, tree, alph)
-
-to something like:
-
-    automaton = SuffixAutomaton(symbols)
-    stats = history_stats(automaton; max_depth = cfg.max_history)
-    partition = _sufficiency_phase(cfg, stats, automaton, alph)
-
-Phase III (`_determinism_phase`, `_build_machine`) still call the old
-`_state_distribution(state_id, partition, tree)` / `get_stats(tree, h)` and
-would need the same (stats, automaton; max_depth) swap to stay consistent --
-not changed here since only the sufficiency phase was in scope.
-=#
 
 # ------------------------------------------------------------------------------
 # Phase III: determinism
@@ -468,26 +430,25 @@ Merge states whose aggregate next-symbol distributions are indistinguishable,
 until no mergeable pair remains. Uses a lenient merge threshold (≥ 0.1) to avoid
 over-splitting. Returns a new partition; the input is left unchanged.
 """
-function _determinism_phase(cfg::CSSRConfig, partition::StatePartition, tree)
+function _determinism_phase(partition::StatePartition, hist_stats, merge_sig=0.1)
     current = copy(partition)
-    merge_sig = max(something(cfg.merge_significance, cfg.significance), 0.1)
-
     while true
-        pair = _find_mergeable_pair(cfg, current, tree, merge_sig)
+        pair = _find_mergeable_pair(current, hist_stats, merge_sig)
         pair === nothing && break
         merge_states!(current, collect(pair))
     end
     return current
 end
 
+
 """Return the first pair of states with indistinguishable distributions, or `nothing`."""
-function _find_mergeable_pair(cfg::CSSRConfig, partition, tree, significance)
+function _find_mergeable_pair(partition, hist_stats, significance)
     ids = state_ids(partition)
-    for i in 1:(length(ids) - 1)
-        dist1 = _state_distribution(ids[i], partition, tree)
-        for j in (i + 1):length(ids)
-            dist2 = _state_distribution(ids[j], partition, tree)
-            distributions_differ(dist1, dist2, significance, cfg.test) ||
+    for i in 1:(length(ids)-1)
+        dist1 = _state_distribution(ids[i], partition, hist_stats)
+        for j in (i+1):length(ids)
+            dist2 = _state_distribution(ids[j], partition, hist_stats)
+            distributions_differ(dist1, dist2, alpha=significance) ||
                 return (ids[i], ids[j])
         end
     end
@@ -499,45 +460,64 @@ end
 # ------------------------------------------------------------------------------
 
 """Construct an ε-machine from a state partition."""
-function _build_machine(cfg::CSSRConfig, partition, tree::SuffixTree{A}, alphabet) where {A}
-    builder = EpsilonMachineBuilder{A}()
+function _build_machine(partition, hist_stats, alphabet, max_history)
+    A = eltype(alphabet)
 
-    ids = state_ids(partition)
+    ids = sort(state_ids(partition))
     if isempty(ids)
-        ids = ["S0"]
-        assign!(partition, A[], "S0")
+        ids = [1]
+        assign!(partition, "", 1)
     end
+
+    causal_states = CausalState{A}[]
 
     for state_id in ids
         hists = get_histories(partition, state_id)
-        symbol_counts = _state_distribution(state_id, partition, tree)
+        symbol_counts = _state_distribution(state_id, partition, hist_stats)
 
-        total = sum(values(symbol_counts))
+        total = sum(values(symbol_counts); init=0)
         if total == 0
             total = length(alphabet)
             symbol_counts = Dict{A,Int}(a => 1 for a in alphabet)
         end
 
+        transitions = Transition{A}[]
+
         for (sym, cnt) in symbol_counts
-            target = something(_find_target_state(cfg, hists, sym, partition), state_id)
-            add_transition!(
-                builder;
-                source = state_id,
-                symbol = sym,
-                target,
-                probability = cnt / total,
-            )
+            target = _find_target_state(hists, sym, partition; max_history)
+            target = target !== nothing ? target : state_id
+            prob = cnt // total
+            tr = Transition(sym, prob, target)
+            push!(transitions, tr)
         end
+
+        transitions
+        cs = CausalState(state_id, transitions)
+
+        push!(causal_states, cs)
     end
 
-    with_start_state!(builder, first(ids))
-    return build(builder)
+    start_state = string(first(ids))
+
+    # TODO stationary_distribution
+
+    return EpsilonMachine(
+        alphabet,
+        causal_states,
+        start_state,
+    )
 end
 
-"""Find the state reached after emitting `symbol` from any of `hists`, or `nothing`."""
-function _find_target_state(cfg::CSSRConfig, hists, symbol, partition)
+"""
+Find the state reached after emitting `symbol` from any of `hists`, or `nothing`.
+"""
+function _find_target_state(hists, symbol, partition; max_history)
     for h in hists
-        extended = length(h) >= cfg.max_history ? push!(h[2:end], symbol) : push!(copy(h), symbol)
+        extended = if length(h) >= max_history
+            h[2:end] * symbol
+        else
+            h * symbol
+        end
 
         target = get_state(partition, extended)
         target === nothing || return target
@@ -550,19 +530,3 @@ function _find_target_state(cfg::CSSRConfig, hists, symbol, partition)
     end
     return nothing
 end
-
-# ------------------------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------------------------
-
-"""Aggregate next-symbol counts over all histories assigned to `state_id`."""
-function _state_distribution(state_id, partition, tree::SuffixTree{A}) where {A}
-    aggregate = Dict{A,Int}()
-    for h in get_histories(partition, state_id)
-        stats = get_stats(tree, h)
-        stats === nothing || mergewith!(+, aggregate, stats.next_symbol_counts)
-    end
-    return aggregate
-end
-
-_prepend(a, history) = pushfirst!(copy(history), a)

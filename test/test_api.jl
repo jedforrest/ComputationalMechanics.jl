@@ -27,20 +27,17 @@ using HypothesisTests: ChisqTest, pvalue
 ep = ComputationalMechanics.even_process(0.4)
 ep.states
 
-ss = simulate(String, ep, 50)
-sv = simulate(Vector, ep, 50)
-
-
+ss = simulate(String, ep, 100)
 
 text = "banana"^20
 # text = "mississippi"
-# text = ss
+text = ss
 # text = 0:5
 automaton = SuffixAutomaton(text)
 H = history_stats(automaton, max_depth=5)
-H[""]
 
+inference = infer_machine(CSSR(), text, min_count=5, max_history=5)
 
-partition = infer_machine(CSSR(), text, min_count=5, max_history=5)
+machine = inference.machine
 
-get_histories(partition, 3)
+# TODO plotting

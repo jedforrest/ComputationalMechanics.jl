@@ -14,11 +14,16 @@ export Transition, CausalState, transition_graph, sample_next_transition, emissi
 export label, transitions, symbols, symboltype, probability
 
 include("epsilonmachine.jl")
-export EpsilonMachine, transition_matrix, distribution, simulate
-export alphabet_size, topological_complexity, num_states, num_transitions
+export EpsilonMachine, get_states, get_transitions, transition_matrix, distribution
+export simulate, alphabet_size, topological_complexity, num_states, num_transitions
 export statistical_complexity, entropy_rate
 
 include("process.jl")
 export golden_mean_process, even_process, biased_coin_process, periodic_process
+
+include("statepartition.jl")
+
+include("inference.jl")
+export CSSR, infer_machine, history_stats
 
 end
