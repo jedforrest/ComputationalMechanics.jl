@@ -18,3 +18,29 @@ statistical_complexity(machine)
 entropy_rate(machine)
 
 plot(machine)
+
+#-------------------------------------------------------------------------------------------
+using ComputationalMechanics
+using SuffixAutomata
+using HypothesisTests: ChisqTest, pvalue
+
+ep = ComputationalMechanics.even_process(0.4)
+ep.states
+
+ss = simulate(String, ep, 50)
+sv = simulate(Vector, ep, 50)
+
+
+
+text = "banana"^20
+# text = "mississippi"
+# text = ss
+# text = 0:5
+automaton = SuffixAutomaton(text)
+H = history_stats(automaton, max_depth=5)
+H[""]
+
+
+partition = infer_machine(CSSR(), text, min_count=5, max_history=5)
+
+get_histories(partition, 3)

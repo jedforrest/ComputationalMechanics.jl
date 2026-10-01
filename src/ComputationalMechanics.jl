@@ -3,6 +3,8 @@ module ComputationalMechanics
 using Random
 using StatsBase
 using Graphs, MetaGraphsNext
+using SuffixAutomata
+using HypothesisTests: ChisqTest, pvalue
 
 include("probability.jl")
 export Probability
@@ -12,8 +14,9 @@ export Transition, CausalState, transition_graph, sample_next_transition, emissi
 export label, transitions, symbols, symboltype, probability
 
 include("epsilonmachine.jl")
-export EpsilonMachine, transition_matrix, distribution, alphabet_size, topological_complexity
-export num_states, num_transitions, statistical_complexity, entropy_rate
+export EpsilonMachine, transition_matrix, distribution, simulate
+export alphabet_size, topological_complexity, num_states, num_transitions
+export statistical_complexity, entropy_rate
 
 include("process.jl")
 export golden_mean_process, even_process, biased_coin_process, periodic_process

@@ -12,7 +12,7 @@ and a transition graph.
 - `exact_distribution`: optional exact distribution over states.
 """
 struct EpsilonMachine{T}
-    alphabet::Set{T}
+    alphabet::Vector{T}
     states::Vector{CausalState{T}}
     startstate::String
     graph::MetaGraph
@@ -28,14 +28,15 @@ struct EpsilonMachine{T}
     Throws `ArgumentError` if the machine is not unifilar.
     """
     function EpsilonMachine(
-        alphabet::Union{AbstractSet{T},AbstractVector{T}},
+        alphabet::AbstractVector{T},
         states::AbstractVector{<:CausalState{T}},
         startstate::AbstractString,
         exact_distribution=nothing
     ) where T
         # TODO validation
+        alphabet = sort(unique(alphabet))
         graph = transition_graph(states)
-        em = new{T}(Set(alphabet), states, startstate, graph, exact_distribution)
+        em = new{T}(alphabet, states, startstate, graph, exact_distribution)
 
         _is_unifilar(em) || throw(ArgumentError(
             "ε-Machine is not unifilar: each state should have one transition per symbol"))
@@ -56,17 +57,17 @@ function EpsilonMachine(
     startstate::AbstractString
 ) where T
 
-    alphabet = Set(Iterators.flatten(symbols.(states)))
+    alphabet = collect(Iterators.flatten(symbols.(states)))
     EpsilonMachine(alphabet, states, startstate)
 end
 
 ## Base extensions
 
 function Base.show(io::IO, em::EpsilonMachine)
-    str = "ε-Machine $(collect(em.alphabet))"
-    for s in em.states
-        str *= "\n$s"
-    end
+    str = "EpsilonMachine{$(eltype(em))}\n"
+    str *="  alphabet: $(collect(em.alphabet))\n"
+    str *="  states: $(num_states(em))\n"
+    str *="  transitions: $(num_transitions(em))"
     print(io, str)
 end
 
@@ -79,12 +80,13 @@ function Base.iterate(em::EpsilonMachine, state=em.startstate)
 end
 
 Base.IteratorSize(::Type{<:EpsilonMachine}) = Base.IsInfinite()
+
 Base.eltype(::Type{EpsilonMachine{T}}) where T = T
 Base.eltype(::EpsilonMachine{T}) where T = T
 
 Base.getindex(em::EpsilonMachine, label) = em.graph[label]
 
-#-------------------------------------------------------------------------------------------
+##
 """
     transition_matrix(em::EpsilonMachine)
 
@@ -108,6 +110,14 @@ function distribution(em::EpsilonMachine, exact=true)
         return nothing
     end
 end
+
+"""
+TODO: docstring
+"""
+simulate(em::EpsilonMachine, n::Int) = simulate(String, em, n)
+simulate(::Type{String}, em::EpsilonMachine, n::Int) = join(Iterators.take(em, n))
+simulate(::Type{Vector}, em::EpsilonMachine, n::Int) = collect(Iterators.take(em, n))
+
 
 ## Validation
 
