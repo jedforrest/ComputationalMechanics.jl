@@ -9,14 +9,12 @@ and a transition graph.
 - `states`: causal states comprising the machine.
 - `startstate`: label of the start state.
 - `graph`: transition graph of the machine.
-- `stationary_distribution`: optional stationary distribution over states.
 """
 struct EpsilonMachine{T}
     alphabet::Vector{T}
     states::Vector{CausalState{T}}
     startstate::String
     graph::MetaGraph
-    stationary_distribution::Union{Dict{String,Probability},Nothing}
 
     """
         EpsilonMachine(alphabet, states, startstate, stationary_distribution=nothing)
@@ -29,13 +27,12 @@ struct EpsilonMachine{T}
     function EpsilonMachine(
         alphabet::AbstractVector{T},
         states::AbstractVector{<:CausalState{T}},
-        startstate::AbstractString,
-        stationary_distribution=nothing
+        startstate::AbstractString
     ) where T
         # TODO validation
         alphabet = sort(unique(alphabet))
         graph = transition_graph(states)
-        em = new{T}(alphabet, states, startstate, graph, stationary_distribution)
+        em = new{T}(alphabet, states, startstate, graph)
 
         _is_unifilar(em) || throw(ArgumentError(
             "ε-Machine is not unifilar: each state should have one transition per symbol"))
@@ -96,21 +93,32 @@ get_transitions(em::EpsilonMachine) = collect(Iterators.flatten(transitions.(em.
 
 Return the weighted transition matrix of the ε-machine graph.
 """
-transition_matrix(em::EpsilonMachine) = Float64.(Graphs.weights(em.graph))
+transition_matrix(em::EpsilonMachine) = float.(Graphs.weights(em.graph))
 
 """
-    distribution(em::EpsilonMachine)
+    simulate(em::EpsilonMachine, n::Int)
 
-Return the state distribution when available.
-"""
-distribution(em::EpsilonMachine) = em.stationary_distribution
-
-"""
-TODO: docstring
+Simulate the ε-machine for `n` steps, returning a string of emitted symbols.
 """
 simulate(em::EpsilonMachine, n::Int) = simulate(String, em, n)
 simulate(::Type{String}, em::EpsilonMachine, n::Int) = join(Iterators.take(em, n))
 simulate(::Type{Vector}, em::EpsilonMachine, n::Int) = collect(Iterators.take(em, n))
+
+
+
+"""
+    stationary_distribution(em::EpsilonMachine)
+
+Calculate the stationary distribution from the ε-machine graph.
+"""
+function stationary_distribution(em::EpsilonMachine)
+    # get eigenvalue decomposition of transition matrix and normalise
+    P = transition_matrix(em)
+    vals, vecs = eigen(P')
+    p = real(vecs[:, argmin(abs.(vals .- 1))])
+    p ./= sum(p)
+    return Dict(label.(em.states) .=> p)
+end
 
 
 ## Validation

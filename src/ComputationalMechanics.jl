@@ -5,6 +5,7 @@ using StatsBase
 using Graphs, MetaGraphsNext, PlotGraphviz
 using SuffixAutomata
 using HypothesisTests: ChisqTest, pvalue
+using LinearAlgebra: eigen
 
 include("probability.jl")
 export Probability
@@ -16,7 +17,7 @@ export label, transitions, symbols, symboltype, probability
 include("epsilonmachine.jl")
 export EpsilonMachine, get_states, get_transitions, transition_matrix, distribution
 export simulate, alphabet_size, topological_complexity, num_states, num_transitions
-export statistical_complexity, entropy_rate
+export statistical_complexity, entropy_rate, stationary_distribution
 
 include("process.jl")
 export golden_mean_process, even_process, biased_coin_process, periodic_process

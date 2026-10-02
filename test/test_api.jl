@@ -57,3 +57,17 @@ using Graphs, MetaGraphsNext, PlotGraphviz
 
 plot_machine(ep)
 plot_machine(machine)
+
+
+
+using LinearAlgebra: eigen
+
+P = [0 1; 1 0]
+P = transition_matrix(machine)
+
+stationary_distribution(ep)
+stationary_distribution(machine)
+
+pp = periodic_process('a':'f')
+simulate(pp, 12)
+stationary_distribution(pp)
