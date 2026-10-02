@@ -20,7 +20,7 @@ export simulate, alphabet_size, topological_complexity, num_states, num_transiti
 export statistical_complexity, entropy_rate, stationary_distribution
 
 include("process.jl")
-export golden_mean_process, even_process, biased_coin_process, periodic_process
+export golden_mean_process, even_process, biased_coin_process, periodic_process, feldman_hanna_process
 
 include("statepartition.jl")
 

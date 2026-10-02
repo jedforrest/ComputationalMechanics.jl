@@ -24,6 +24,7 @@ using ComputationalMechanics
 
 ep = ComputationalMechanics.even_process(0.6)
 ep.states
+ep.startstate = "B"
 
 N = 1000
 ss = simulate(String, ep, N)
@@ -37,7 +38,6 @@ inference = infer_machine(CSSR(), text, min_count=5, max_history=5)
 
 machine = inference.machine
 machine.states
-machine.startstate
 ss_inferred = simulate(machine, N)
 
 # inferred
@@ -71,3 +71,13 @@ stationary_distribution(machine)
 pp = periodic_process('a':'f')
 simulate(pp, 12)
 stationary_distribution(pp)
+
+fhp = feldman_hanna_process()
+
+plot_machine(fhp)
+
+fhp.startstate
+y = simulate(fhp, 1000)
+
+infer = infer_machine(CSSR(), y, min_count=5, max_history=6)
+plot_machine(infer.machine)

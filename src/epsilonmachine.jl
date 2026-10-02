@@ -10,7 +10,7 @@ and a transition graph.
 - `startstate`: label of the start state.
 - `graph`: transition graph of the machine.
 """
-struct EpsilonMachine{T}
+mutable struct EpsilonMachine{T}
     alphabet::Vector{T}
     states::Vector{CausalState{T}}
     startstate::String
@@ -27,7 +27,7 @@ struct EpsilonMachine{T}
     function EpsilonMachine(
         alphabet::AbstractVector{T},
         states::AbstractVector{<:CausalState{T}},
-        startstate::AbstractString
+        startstate::AbstractString=first(label.(states))
     ) where T
         # TODO validation
         alphabet = sort(unique(alphabet))
@@ -87,6 +87,8 @@ Base.getindex(em::EpsilonMachine, label) = em.graph[label]
 get_states(em::EpsilonMachine) = em.states
 
 get_transitions(em::EpsilonMachine) = collect(Iterators.flatten(transitions.(em.states)))
+
+labels(em::EpsilonMachine) = label.(em.states)
 
 """
     transition_matrix(em::EpsilonMachine)
