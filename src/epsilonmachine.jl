@@ -180,7 +180,7 @@ topological_complexity(em::EpsilonMachine) = log2(num_states(em))
 Return the statistical complexity as the Shannon entropy of the state distribution.
 """
 function statistical_complexity(em::EpsilonMachine)
-    dist = distribution(em)
+    dist = stationary_distribution(em)
     entropy(collect(values(dist)))
 end
 
@@ -191,7 +191,7 @@ Estimate the entropy rate by averaging the per-state conditional entropies weigh
 state distribution.
 """
 function entropy_rate(em::EpsilonMachine)
-    dist = distribution(em)
+    dist = stationary_distribution(em)
     h = 0.
 
     for state in em.states
@@ -210,9 +210,3 @@ function entropy_rate(em::EpsilonMachine)
 
     return h
 end
-
-# TODO
-# excess_entropy(em::EpsilonMachine)
-
-# TODO
-# crypticity(em::EpsilonMachine) = statistical_complexity(em) - excess_entropy(em)

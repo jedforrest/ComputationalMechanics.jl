@@ -75,7 +75,7 @@ function feldman_hanna_process()
     states = [
         CausalState("AAA", [Transition('A', 3/16, "AAA"), Transition('B', 13/16, "AAAB")])
         CausalState("AAAB", [Transition('A', 3/16, "BA"), Transition('B', 13/16, "BB")])
-        CausalState("BA", [Transition('A', 9/16, "BAA"), Transition('B', 7/16, "AAAB")])
+        CausalState("BA", [Transition('A', 9/16, "BAA"), Transition('B', 7/16, "BAB")])
         CausalState("BB", [Transition('A', 15/16, "BA"), Transition('B', 1/16, "BB")])
         CausalState("BAA", [Transition('A', 9/16, "AAA"), Transition('B', 7/16, "BAAB")])
         CausalState("BAB", [Transition('A', 4/16, "BA"), Transition('B', 12/16, "BB")])

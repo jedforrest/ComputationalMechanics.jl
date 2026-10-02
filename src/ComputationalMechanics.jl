@@ -1,6 +1,5 @@
 module ComputationalMechanics
 
-using Random
 using StatsBase
 using Graphs, MetaGraphsNext, PlotGraphviz
 using SuffixAutomata
@@ -15,7 +14,7 @@ export Transition, CausalState, transition_graph, sample_next_transition, emissi
 export label, transitions, symbols, symboltype, probability
 
 include("epsilonmachine.jl")
-export EpsilonMachine, get_states, get_transitions, transition_matrix, distribution
+export EpsilonMachine, get_states, get_transitions, transition_matrix, distribution, labels
 export simulate, alphabet_size, topological_complexity, num_states, num_transitions
 export statistical_complexity, entropy_rate, stationary_distribution
 
@@ -28,6 +27,6 @@ include("inference.jl")
 export CSSR, infer_machine, history_stats
 
 include("plotting.jl")
-export plot_machine, DOTstring
+export plot_machine
 
 end
