@@ -129,6 +129,14 @@ end
 Base.eltype(::Type{CausalState{T}}) where T = T
 Base.eltype(::CausalState{T}) where T = T
 
+Base.length(cs::CausalState) = length(cs.transitions)
+
+# iterate over the outgoing transitions of a causal state
+function Base.iterate(cs::CausalState, state=1)
+    state > length(cs.transitions) && return nothing
+    return (cs.transitions[state], state + 1)
+end
+
 ## Transition graphs and traversal
 
 """

@@ -18,7 +18,7 @@ function Base.show(io::IO, result::InferenceResult)
     str *= "  algorithm = $(typeof(result.alg))\n"
     str *= "  sequence_length = $(result.sequence_length)\n"
     str *= "  max_history = $(result.max_history)\n"
-    str *= "  max_history = $(result.min_count)\n"
+    str *= "  min_count = $(result.min_count)\n"
     str *= "  alpha = $(result.alpha)\n"
     str *= "  causal_states = $(num_states(result.machine))\n"
     str *= "  transitions = $(num_transitions(result.machine))"
@@ -463,7 +463,7 @@ end
 function _build_machine(partition, hist_stats, alphabet, max_history)
     A = eltype(alphabet)
 
-    ids = sort(state_ids(partition))
+    ids = state_ids(partition)
     if isempty(ids)
         ids = [1]
         assign!(partition, "", 1)

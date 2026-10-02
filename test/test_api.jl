@@ -21,23 +21,39 @@ plot(machine)
 
 #-------------------------------------------------------------------------------------------
 using ComputationalMechanics
-using SuffixAutomata
-using HypothesisTests: ChisqTest, pvalue
 
-ep = ComputationalMechanics.even_process(0.4)
+ep = ComputationalMechanics.even_process(0.6)
 ep.states
 
-ss = simulate(String, ep, 100)
+N = 1000
+ss = simulate(String, ep, N)
 
-text = "banana"^20
+text = "banana"^50
 # text = "mississippi"
 text = ss
 # text = 0:5
-automaton = SuffixAutomaton(text)
-H = history_stats(automaton, max_depth=5)
 
 inference = infer_machine(CSSR(), text, min_count=5, max_history=5)
 
 machine = inference.machine
+machine.states
+machine.startstate
+ss_inferred = simulate(machine, N)
 
-# TODO plotting
+# inferred
+count(x -> x == '1', ss_inferred)
+count(x -> x == '0', ss_inferred)
+# original
+count(x -> x == '1', ss)
+count(x -> x == '0', ss)
+
+# TODO stationary distribution
+tm_ep = transition_matrix(ep)
+tm_mi = transition_matrix(machine)
+tm_ep^1000
+tm_mi^1000
+
+using Graphs, MetaGraphsNext, PlotGraphviz
+
+plot_machine(ep)
+plot_machine(machine)

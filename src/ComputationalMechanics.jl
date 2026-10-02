@@ -2,7 +2,7 @@ module ComputationalMechanics
 
 using Random
 using StatsBase
-using Graphs, MetaGraphsNext
+using Graphs, MetaGraphsNext, PlotGraphviz
 using SuffixAutomata
 using HypothesisTests: ChisqTest, pvalue
 
@@ -25,5 +25,8 @@ include("statepartition.jl")
 
 include("inference.jl")
 export CSSR, infer_machine, history_stats
+
+include("plotting.jl")
+export plot_machine, DOTstring
 
 end
