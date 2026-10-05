@@ -31,7 +31,7 @@ function _set_graph_attributes(mg::MetaGraph)
     for e in attr.edges
         src, dst = e.from, e.to
         tr = _get_transition(mg, src, dst)
-        label = "$(tr.symbol) | $(float(tr.probability))"
+        label = "$(tr.symbol) | $(tr.probability)"
         set!(attr.edges, src, dst, Property("label", label))
         set!(attr.edges, src, dst, Property("weight", float(tr.probability)))
     end
