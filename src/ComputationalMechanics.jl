@@ -27,6 +27,6 @@ include("inference.jl")
 export CSSR, infer_machine, history_stats
 
 include("plotting.jl")
-export plot_machine
+export plot_machine, to_dot_file
 
 end

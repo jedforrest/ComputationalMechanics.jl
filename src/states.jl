@@ -53,7 +53,7 @@ symboltype(::Transition{T}) where T = T
 
 ## Base extensions
 function Base.show(io::IO, t::Transition)
-    print(io, "$(t.probability)|$(t.symbol) -> $(t.target)")
+    print(io, "$(t.symbol)|$(t.probability) -> $(t.target)")
 end
 
 Base.eltype(::Type{Transition{T}}) where T = T
@@ -150,8 +150,8 @@ function transition_graph()
         label_type=String,
         vertex_data_type=CausalState,
         edge_data_type=Transition,
-        weight_function=t -> probability(t),
-        default_weight=Probability(0),
+        weight_function=t -> float(probability(t)),
+        default_weight=0.,
     )
 end
 
