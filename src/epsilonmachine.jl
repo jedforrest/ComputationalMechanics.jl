@@ -17,10 +17,10 @@ mutable struct EpsilonMachine{T}
     graph::MetaGraph
 
     """
-        EpsilonMachine(alphabet, states, startstate, stationary_distribution=nothing)
+        EpsilonMachine(alphabet, states, startstate)
 
-    Construct an ε-machine from an alphabet, a vector of causal states, a start state label,
-    and an optional stationary distribution.
+    Construct an ε-machine from an alphabet, a vector of causal states, and optional
+    starting state.
 
     Throws `ArgumentError` if the machine is not unifilar.
     """
@@ -82,11 +82,11 @@ Base.eltype(::EpsilonMachine{T}) where T = T
 
 Base.getindex(em::EpsilonMachine, label) = em.graph[label]
 
-##
+## Core properties and functions
 
-get_states(em::EpsilonMachine) = em.states
+states(em::EpsilonMachine) = em.states
 
-get_transitions(em::EpsilonMachine) = collect(Iterators.flatten(transitions.(em.states)))
+transitions(em::EpsilonMachine) = collect(Iterators.flatten(transitions.(em.states)))
 
 labels(em::EpsilonMachine) = label.(em.states)
 
@@ -96,16 +96,6 @@ labels(em::EpsilonMachine) = label.(em.states)
 Return the weighted transition matrix of the ε-machine graph.
 """
 transition_matrix(em::EpsilonMachine) = float.(Graphs.weights(em.graph))
-
-"""
-    simulate(em::EpsilonMachine, n::Int)
-
-Simulate the ε-machine for `n` steps, returning a string of emitted symbols.
-"""
-simulate(em::EpsilonMachine, n::Int) = simulate(String, em, n)
-simulate(::Type{String}, em::EpsilonMachine, n::Int) = join(Iterators.take(em, n))
-simulate(::Type{Vector}, em::EpsilonMachine, n::Int) = collect(Iterators.take(em, n))
-
 
 
 """
@@ -117,10 +107,25 @@ function stationary_distribution(em::EpsilonMachine)
     # get eigenvalue decomposition of transition matrix and normalise
     P = transition_matrix(em)
     vals, vecs = eigen(P')
-    p = real(vecs[:, argmin(abs.(vals .- 1))])
-    p ./= sum(p)
-    return Dict(label.(em.states) .=> p)
+    ps = real(vecs[:, argmin(abs.(vals .- 1))])
+    ps ./= sum(ps)
+    return Distribution(label.(em.states), ps)
 end
+
+
+"""
+    simulate(em::EpsilonMachine, n::Int)
+
+Simulate the ε-machine for `n` steps, returning a string of emitted symbols.
+"""
+simulate(em::EpsilonMachine, n::Int) = simulate(String, em, n)
+simulate(::Type{String}, em::EpsilonMachine, n::Int) = join(Iterators.take(em, n))
+simulate(::Type{Vector}, em::EpsilonMachine, n::Int) = collect(Iterators.take(em, n))
+
+
+# TODO CONTINUE FROM HERE
+# - predict
+# - filter
 
 
 ## Validation
@@ -143,20 +148,20 @@ function _is_unifilar(em::EpsilonMachine)
     return true
 end
 
-## Structural measures
+## Structural and statistical measures
 """
     num_states(em::EpsilonMachine)
 
 Return the number of causal states in the ε-machine.
 """
-num_states(em::EpsilonMachine) = length(get_states(em))
+num_states(em::EpsilonMachine) = length(states(em))
 
 """
     num_transitions(em::EpsilonMachine)
 
 Return the number of transitions in the ε-machine graph.
 """
-num_transitions(em::EpsilonMachine) = length(get_transitions(em))
+num_transitions(em::EpsilonMachine) = length(transitions(em))
 
 """
     alphabet_size(em::EpsilonMachine)
@@ -173,7 +178,7 @@ number of states.
 """
 topological_complexity(em::EpsilonMachine) = log2(num_states(em))
 
-## Core measures
+
 """
     statistical_complexity(em::EpsilonMachine)
 

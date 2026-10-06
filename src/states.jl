@@ -79,7 +79,7 @@ struct CausalState{T}
         transitions::AbstractVector{Transition{T}}
     ) where T
         # TODO validation
-        total_prob = sum(tr.probability.value for tr in transitions)
+        total_prob = sum(tr.probability for tr in transitions)
         total_prob ≈ 1 || throw(ArgumentError("Total probability of transitions must sum to 1, got $total_prob"))
 
         new{T}(string(label), transitions)
@@ -184,7 +184,7 @@ Sample one outgoing transition from a causal state according to its transition p
 """
 function sample_next_transition(cs::CausalState)
     trs = transitions(cs)
-    W = Weights(Float64.(probability.(trs)))
+    W = Weights(float.(probability.(trs)))
     sample(trs, W)
 end
 
@@ -193,10 +193,7 @@ end
 
 Return the distribution of emitted symbols from a causal state.
 """
-function emission_distribution(cs::CausalState{T}) where T
-    dist = Dict{T,Probability}()
-    for t in transitions(cs)
-        dist[t.symbol] = get(dist, t.symbol, 0.) + t.probability
-    end
-    return dist
+function emission_distribution(cs::CausalState{T}; alphabet::AbstractVector{T}=symbols(cs)) where T
+    trs = transitions(cs)
+    Distribution(symbol.(trs), probability.(trs); alphabet)
 end

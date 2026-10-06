@@ -11,6 +11,7 @@
     @test (q / p).value ≈ 2. / 3.
 end
 
+# TODO test Distribution alias
 
 @testset "Transition graph and causal states" begin
     @test_throws ArgumentError Transition(0, 2.0, "A")

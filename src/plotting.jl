@@ -20,10 +20,14 @@ function _set_graph_attributes(mg::MetaGraph)
 
     # global properties
     set!(attr.plot_options, "weights", true)
+
+    set!(attr.graph_options, "rankdir", "LR")
+
     set!(attr.node_options, "color", "black")
     set!(attr.node_options, "filled", true)
     set!(attr.node_options, "fillcolor", "lightblue")
-    set!(attr.edge_options, "fontsize", 7)
+
+    set!(attr.edge_options, "fontsize", 7.0)
     set!(attr.edge_options, "color", "black")
     set!(attr.edge_options, "fontcolor", "blue")
 
