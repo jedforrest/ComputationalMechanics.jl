@@ -16,7 +16,7 @@ SuffixAutomata = "d8d90db5-3bd3-4328-8736-8f5f0958bb41"
 [compat]
 Graphs = "1.15.0"
 HypothesisTests = "0.12.2"
-LinearAlgebra = "1"
+LinearAlgebra = "<0.0.1, 1"
 MetaGraphsNext = "0.8.0"
 PlotGraphviz = "0.7.0"
 Random = "1"
