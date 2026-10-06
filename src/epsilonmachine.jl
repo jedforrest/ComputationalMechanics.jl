@@ -127,6 +127,10 @@ simulate(::Type{Vector}, em::EpsilonMachine, n::Int) = collect(Iterators.take(em
 # - predict
 # - filter
 
+function filter(em::EpsilonMachine)
+
+end
+
 
 ## Validation
 

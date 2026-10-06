@@ -64,6 +64,7 @@ stationary_distribution(ep)
 transitions(ep.states[1])
 
 dd = Distribution(['A', 'B', 'C'], [0.5, 0.4, 0.1])
+eltype(dd)
 dd['D'] = 0
 dd
 

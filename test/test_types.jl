@@ -11,7 +11,20 @@
     @test (q / p).value ≈ 2. / 3.
 end
 
-# TODO test Distribution alias
+
+@testset "Distributions" begin
+    dist = Distribution(['A', 'B', 'C'], [0.5, 0.4, 0.1])
+    @test eltype(dist) == Pair{Char, Probability}
+    dist['D']
+    @test dist['D'] == Probability(0)
+
+    dist2 = Distribution([0, 1], [0.5, 0.5]; alphabet=0:5)
+    @test dist2[1] == 0.5
+    @test length(keys(dist2)) == 6
+
+    @test_throws ArgumentError Distribution([0, 1], [0.5, 0.2])
+end
+
 
 @testset "Transition graph and causal states" begin
     @test_throws ArgumentError Transition(0, 2.0, "A")
