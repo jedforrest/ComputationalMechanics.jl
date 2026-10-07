@@ -41,9 +41,6 @@ function infer_machine(
     min_count=5,
     alpha=0.05,
     statistical_test=:chi2,  # chi2 | ks | g
-    # max_iteratons = 1000,
-    # post_merge = true,
-    # merge_significance = 0.05
 )
     # validate parameters
     max_history >= 1 || throw(ArgumentError("max_history must be >= 1"))
@@ -57,15 +54,20 @@ function infer_machine(
     n_syms < min_required && throw(ArgumentError(
         "Provided sequence has $n_syms symbols, " *
             "but $min_required are required for the CSSR algorithm."
+        )
     )
-    )
+
+    # covert vector into a sequence string
+    if sequence isa AbstractVector
+        sequence = join(sequence)
+        alphabet = collect(join(alphabet))  # TODO allow non-char alphabets
+    end
 
     # Phase I: build suffix automaton on the sequence
     automaton = SuffixAutomaton(sequence)
     history = history_stats(automaton; max_depth=max_history)
 
     # Phase II: level-by-level sufficiency testing
-    # TODO CONTINUE FROM HERE
     partition = _sufficiency_phase(history, alphabet, min_count)
 
     # Phase III: ensure determinism (merge equivalent states)
@@ -207,7 +209,7 @@ function _is_synchronizing_core(history, history_stats; alphabet, min_count)
     # Check extensions: (a,) + history for each a in alphabet
     extension_dists = Dict{eltype(history),Int}[]
     for a in alphabet
-        extended = a * history  # prepend
+        extended = string(a) * history  # prepend
         ext_dist = get(history_stats, extended, nothing)
 
         isnothing(ext_dist) && continue
@@ -492,14 +494,12 @@ function _build_machine(partition, hist_stats, alphabet, max_history)
         end
 
         transitions
-        cs = CausalState(state_id, transitions)
+        cs = CausalState(state_id, transitions, partition.state_to_histories[state_id])
 
         push!(causal_states, cs)
     end
 
     start_state = string(first(ids))
-
-    # TODO stationary_distribution
 
     return EpsilonMachine(
         alphabet,

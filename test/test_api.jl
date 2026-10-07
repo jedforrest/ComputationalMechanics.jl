@@ -13,7 +13,7 @@ transducer = fit(TransCSSR(), u, y;
 
 predict(machine, history) # TODO
 simulate(machine, 10_000)
-filter(machine, y) # TODO
+filter_states(machine, y) # TODO
 
 statistical_complexity(machine)
 entropy_rate(machine)
@@ -22,63 +22,35 @@ plot(machine)
 
 #-------------------------------------------------------------------------------------------
 using ComputationalMechanics
-
-using PlotGraphviz, Graphs, MetaGraphsNext
-ep = even_process(0.6)
-fhp = feldman_hanna_process()
-
-plot_machine(ep)
-to_dot_file(ep, "./test/ep.dot")
-
-plot_machine(fhp)
-to_dot_file(fhp, "./test/fhp.dot")
-
-
-dot_str = mktemp() do file, io
-    to_dot_file(em, file)
-    read(file, String)
-end
-println(dot_str)
-
-
-wg, attr = from_metagraph(ep.graph)
-attr.plot_options
-attr.graph_options
-
-#-------------------------------------------------------------------------------------------
-using ComputationalMechanics
 using DataStructures
 
-ep = even_process(0.6)
-ep.states
+em = golden_mean_process(0.6)
+em.states
 
-dd = Distribution(['A', 'B', 'C'], [0.5, 0.4, 0.1])
+fhp = feldman_hanna_process()
+labels(fhp)
 
-cs = ep.states[1]
-dist = emission_distribution(cs, 0:4)
+N = 1000
+y = simulate(fhp, N)
 
-ep.alphabet
-label.(ep.states)
-stationary_distribution(ep)
+inference = infer_machine(CSSR(), y,
+    max_history=6,
+    min_count=5,
+    alpha = 0.001
+)
+machine = inference.machine
 
-transitions(ep.states[1])
+histories(machine)
 
-dd = Distribution(['A', 'B', 'C'], [0.5, 0.4, 0.1])
-eltype(dd)
-dd['D'] = 0
-dd
+hist = y[end-50+1:end]
+hist = "ABAAB"
+predict(machine, hist)
 
-dd['E']
-haskey(dd, 'E')
+filter_states(machine, hist)
 
-dd
+valid_successors(fhp.states[5])
 
-collect(values(dd))
+predict(machine, hist)
+filter_states(machine, hist)
 
-Distribution{Int}(0)
-
-dd = Distribution{Int}(0)
-dd[1] = 0.5
-dd[2] = 0.8
-
-dd
+emission_distribution(fhp["AAA"])

@@ -61,9 +61,9 @@ end
 
 function Base.show(io::IO, em::EpsilonMachine)
     str = "EpsilonMachine{$(eltype(em))}\n"
-    str *="  alphabet: $(collect(em.alphabet))\n"
-    str *="  states: $(num_states(em))\n"
-    str *="  transitions: $(num_transitions(em))"
+    str *= "  alphabet: $(collect(em.alphabet))\n"
+    str *= "  states: $(num_states(em))\n"
+    str *= "  transitions: $(num_transitions(em))"
     print(io, str)
 end
 
@@ -82,6 +82,10 @@ Base.eltype(::EpsilonMachine{T}) where T = T
 
 Base.getindex(em::EpsilonMachine, label) = em.graph[label]
 
+Base.:(==)(em1::EpsilonMachine, em2::EpsilonMachine) = isequal(em1.alphabet, em2.alphabet) &&
+    isequal(em1.startstate, em2.startstate) &&
+    isequal(em1.states, em2.states)
+
 ## Core properties and functions
 
 states(em::EpsilonMachine) = em.states
@@ -89,6 +93,18 @@ states(em::EpsilonMachine) = em.states
 transitions(em::EpsilonMachine) = collect(Iterators.flatten(transitions.(em.states)))
 
 labels(em::EpsilonMachine) = label.(em.states)
+
+function histories(em::EpsilonMachine)
+    history = Dict{String, Int}()
+    for (i, s) in enumerate(states(em))
+        state_hist = histories(s)
+        isnothing(state_hist) && continue
+        for h in state_hist
+            history[h] = i
+        end
+    end
+    return isempty(history) ? nothing : history
+end
 
 """
     transition_matrix(em::EpsilonMachine)
@@ -123,13 +139,64 @@ simulate(::Type{String}, em::EpsilonMachine, n::Int) = join(Iterators.take(em, n
 simulate(::Type{Vector}, em::EpsilonMachine, n::Int) = collect(Iterators.take(em, n))
 
 
-# TODO CONTINUE FROM HERE
-# - predict
-# - filter
+function predict(em::EpsilonMachine, history::AbstractString)
+    # check if alphabets are compatible
+    Set(unique(history)) <= Set(em.alphabet) || error("ε-machine's alphabet cannot produce this history sequence")
 
-function filter(em::EpsilonMachine)
+    history_to_state = histories(em)
+    isnothing(history_to_state) && error("ε-machine has no recorded state histories.")
 
+    state_idx = match_history_to_state(history_to_state, history)
+    isnothing(state_idx) && error("No valid state found")
+
+    emission_distribution(em.states[state_idx])
 end
+
+
+function filter_states(em::EpsilonMachine, history::AbstractString)
+    # check if alphabets are compatible
+    Set(unique(history)) <= Set(em.alphabet) || error("ε-machine's alphabet cannot produce this history sequence")
+
+    history_to_state = histories(em)
+    isnothing(history_to_state) && error("ε-machine has no recorded state histories.")
+
+    # get the best-matched state for a growing history list
+    N = length(history)
+    state_labels = String[]
+    for n in 1:N
+        hist = history[1:n]
+        state_idx = match_history_to_state(history_to_state, hist)
+        isnothing(state_idx) && continue
+        state = em.states[state_idx]
+
+        # check that the next symbol in the sequence is reachable
+        if n < N && !(history[n + 1] in valid_successors(state))
+            error("The subsequence '$(history[1:n+1])' is not possible for this ε-machine.")
+        end
+
+        push!(state_labels, state.label)
+    end
+    return state_labels
+end
+
+
+function match_history_to_state(history_to_state::Dict{String, Int}, history::AbstractString)
+    # find the best state_index match for the given history sequence
+    # reduce the suffix until a match is found (otherwise return nothing)
+    max_hist_length = maximum(length, keys(history_to_state))  # max_history
+    n = min(length(history), max_hist_length)
+
+    hist = history[end-n+1:end]
+    state_idx = nothing
+    while n > 0
+        hist = history[end-n+1:end]
+        state_idx = get(history_to_state, hist, nothing)
+        !isnothing(state_idx) && break
+        n -= 1
+    end
+    return state_idx
+end
+
 
 
 ## Validation
