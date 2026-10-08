@@ -4,7 +4,7 @@
 
     @test num_states(gmp) == 2
     @test statistical_complexity(gmp) ≈ 0.9183 atol = 1e-4
-    @test entropy_rate(gmp) ≈ 0.6666 atol = 1e-4
+    @test entropy_rate(gmp) ≈ 0.6667 atol = 1e-4
 
     pi_a(p) = 1.0 / (2.0 - p)
     pi_b(p) = (1.0 - p) / (2.0 - p)

@@ -1,6 +1,6 @@
 name = "ComputationalMechanics"
 uuid = "f2eecaa8-c432-4647-8a69-3012f448ed87"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["jedforrest <forrest.j@unimelb.edu.au> and contributors"]
 
 [deps]

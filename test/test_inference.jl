@@ -22,6 +22,15 @@ fhp = feldman_hanna_process()
     @test num_states(machine) == 2
     @test num_transitions(machine) == 3
     @test eltype(machine) == Char
+    @test Set(labels(machine)) == Set(["S1", "S2"])
+
+    dist_orig = stationary_distribution(gmp)
+    dist_infer = stationary_distribution(machine)
+    @test float(dist_orig["A"]) ≈ float(dist_infer["S1"]) atol = 1e-2
+    @test float(dist_orig["B"]) ≈ float(dist_infer["S2"]) atol = 1e-2
+
+    @test statistical_complexity(gmp) ≈ statistical_complexity(machine) atol = 1e-2
+    @test entropy_rate(gmp) ≈ entropy_rate(machine) atol = 1e-2
 
     # inference should also work on vector sequences
     y_vec = simulate(Vector, gmp, N)
@@ -35,8 +44,6 @@ fhp = feldman_hanna_process()
     @test machine_vec.alphabet == machine.alphabet
     @test machine_vec.startstate == machine.startstate
 end
-
-# TODO test with emics examples
 
 @testset "Prediction" begin
     dist = predict(gmp, "1001")

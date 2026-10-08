@@ -8,7 +8,7 @@ using HypothesisTests: ChisqTest, pvalue
 using LinearAlgebra: eigen
 
 include("probability.jl")
-export Probability
+export Probability, Distribution
 
 include("states.jl")
 export Transition, CausalState, transition_graph, sample_next_transition, emission_distribution

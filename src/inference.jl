@@ -4,6 +4,19 @@ abstract type InferenceAlgorithm end
 # TODO config values in this struct?
 struct CSSR <: InferenceAlgorithm end
 
+"""
+    InferenceResult{T}
+
+Result of inferring an ε-machine from a sequence.
+
+# Fields
+- `machine`: inferred ε-machine.
+- `sequence_length`: number of symbols in the input sequence.
+- `max_history`: maximum history length considered during inference.
+- `min_count`: minimum count required for a history to be retained.
+- `alpha`: significance level used by the statistical tests.
+- `alg`: inference algorithm used.
+"""
 struct InferenceResult{T}
     machine::EpsilonMachine{T}
     sequence_length::Int
@@ -232,20 +245,40 @@ function _is_synchronizing_core(history, history_stats; alphabet, min_count)
 end
 
 
-function distributions_differ(dist1::Dict{A,<:Integer}, dist2::Dict{A,<:Integer};
-    alpha::Real=0.001, statistical_test=:chi2) where A
+"""
+    distributions_differ(dist1, dist2; alpha=0.001, statistical_test=:chi2)
+
+Compare two next-symbol distributions.
+
+Return `true` when the distributions differ according to the selected
+statistical test, and `false` otherwise.
+"""
+function distributions_differ(
+    dist1::Dict{A,<:Integer},
+    dist2::Dict{A,<:Integer};
+    alpha::Real=0.001, statistical_test=:chi2
+) where A
     # TODO could have multiple tests to choose from here
     if statistical_test == :chi2
         return chisq_differ(dist1, dist2, alpha)
-        # elseif statistical_test == :p
-        #     return proportion_differ(dist1, dist2, alpha)
     else
         throw(ArgumentError("$statistical_test is not a valid statistical test."))
     end
 end
 
 
-function chisq_differ(dist1::Dict{A,<:Integer}, dist2::Dict{A,<:Integer}, alpha::Real) where A
+"""
+    chisq_differ(dist1, dist2, alpha)
+
+Test whether two next-symbol distributions differ using a chi-squared test.
+
+The test returns `true` when the resulting p-value is below `alpha`.
+"""
+function chisq_differ(
+    dist1::Dict{A,<:Integer},
+    dist2::Dict{A,<:Integer},
+    alpha::Real
+) where A
     n1 = sum(values(dist1); init=0)
     n2 = sum(values(dist2); init=0)
     (n1 == 0 || n2 == 0) && return false
@@ -260,41 +293,8 @@ function chisq_differ(dist1::Dict{A,<:Integer}, dist2::Dict{A,<:Integer}, alpha:
         table[2, j] = get(dist2, s, 0)
     end
 
-    # TODO worth including this warning?
-    # grand_total = n1 + n2
-    # n_low_expected = count(Iterators.product(1:2, 1:k)) do (i, j)
-    #     row_total = i == 1 ? n1 : n2
-    #     col_total = table[1, j] + table[2, j]
-    #     (row_total * col_total / grand_total) < 5
-    # end
-    # if n_low_expected / (2k) > 0.2
-    #     @warn "chisq_differ: >20% of cells have expected count < 5; " *
-    #         "the chi-squared approximation may be unreliable" n1 n2 k
-    # end
-
     return pvalue(ChisqTest(table)) < alpha
 end
-
-
-# function proportion_differ(dist1::Dict{A,<:Integer}, dist2::Dict{A,<:Integer}, tolerance::Real) where A
-#     total1 = sum(values(dist1))
-#     total2 = sum(values(dist2))
-
-#     if total1 < 5 || total2 < 5
-#         return false
-#     end
-
-#     all_keys = unique([keys(dist1); keys(dist2)])
-
-#     for key in all_keys
-#         p1 = get(dist1, key, 0) / total1
-#         p2 = get(dist2, key, 0) / total2
-#         if abs(p1 - p2) > tolerance
-#             return true
-#         end
-#     end
-#     return false
-# end
 
 
 """Find a state for a non-synchronizing history, or `nothing` if none matches."""
@@ -461,6 +461,8 @@ end
 # Machine construction
 # ------------------------------------------------------------------------------
 
+_label(s) = "S$s"
+
 """Construct an ε-machine from a state partition."""
 function _build_machine(partition, hist_stats, alphabet, max_history)
     A = eltype(alphabet)
@@ -489,17 +491,17 @@ function _build_machine(partition, hist_stats, alphabet, max_history)
             target = _find_target_state(hists, sym, partition; max_history)
             target = target !== nothing ? target : state_id
             prob = cnt // total
-            tr = Transition(sym, prob, target)
+            tr = Transition(sym, prob, _label(target))
             push!(transitions, tr)
         end
 
         transitions
-        cs = CausalState(state_id, transitions, partition.state_to_histories[state_id])
+        cs = CausalState(_label(state_id), transitions, partition.state_to_histories[state_id])
 
         push!(causal_states, cs)
     end
 
-    start_state = string(first(ids))
+    start_state = _label(first(ids))
 
     return EpsilonMachine(
         alphabet,

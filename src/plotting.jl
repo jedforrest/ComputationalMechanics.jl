@@ -1,3 +1,10 @@
+"""
+    plot_machine(em; plot_kwargs...)
+
+Plot the transition graph of an ε-machine using Graphviz.
+
+Additional keyword arguments are forwarded to `plot_graphviz`.
+"""
 function plot_machine(em::EpsilonMachine; plot_kwargs...)
     wg, attr = _set_graph_attributes(em.graph)
 
@@ -8,7 +15,13 @@ function plot_machine(em::EpsilonMachine; plot_kwargs...)
     )
 end
 
+"""
+    to_dot_file(em, output)
 
+Write the ε-machine transition graph to a Graphviz DOT file.
+
+The resulting file can be rendered with Graphviz or inspected directly.
+"""
 function to_dot_file(em::EpsilonMachine, output)
     wg, attr = _set_graph_attributes(em.graph)
     write_dot_file(wg, output; attributes=attr)
@@ -42,6 +55,7 @@ function _set_graph_attributes(mg::MetaGraph)
 
     wg, attr
 end
+
 
 function _get_transition(mg::MetaGraph, src_code, dst_code)
     mg[label_for(mg, src_code), label_for(mg, dst_code)]

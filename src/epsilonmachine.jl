@@ -88,17 +88,42 @@ Base.:(==)(em1::EpsilonMachine, em2::EpsilonMachine) = isequal(em1.alphabet, em2
 
 ## Core properties and functions
 
+"""
+    states(em::EpsilonMachine)
+
+Return the causal states comprising the ε-machine.
+"""
 states(em::EpsilonMachine) = em.states
 
-transitions(em::EpsilonMachine) = collect(Iterators.flatten(transitions.(em.states)))
+"""
+    transitions(em::EpsilonMachine)
 
+Return all directed transitions in the ε-machine graph.
+"""
+transitions(em::EpsilonMachine) =
+    collect(Iterators.flatten(transitions.(em.states)))
+
+"""
+    labels(em::EpsilonMachine)
+
+Return the labels of all causal states in the ε-machine.
+"""
 labels(em::EpsilonMachine) = label.(em.states)
 
+"""
+    histories(em::EpsilonMachine)
+
+Return a mapping from recorded history strings to the indices of the states
+that contain those histories.
+
+If no state histories have been recorded, return `nothing`.
+"""
 function histories(em::EpsilonMachine)
     history = Dict{String, Int}()
-    for (i, s) in enumerate(states(em))
-        state_hist = histories(s)
+    for (i, state) in enumerate(states(em))
+        state_hist = histories(state)
         isnothing(state_hist) && continue
+
         for h in state_hist
             history[h] = i
         end
@@ -141,10 +166,12 @@ simulate(::Type{Vector}, em::EpsilonMachine, n::Int) = collect(Iterators.take(em
 
 function predict(em::EpsilonMachine, history::AbstractString)
     # check if alphabets are compatible
-    Set(unique(history)) <= Set(em.alphabet) || error("ε-machine's alphabet cannot produce this history sequence")
+    Set(unique(history)) <= Set(em.alphabet) ||
+        error("ε-machine's alphabet cannot produce this history sequence")
 
     history_to_state = histories(em)
-    isnothing(history_to_state) && error("ε-machine has no recorded state histories.")
+    isnothing(history_to_state) &&
+        error("ε-machine has no recorded state histories.")
 
     state_idx = match_history_to_state(history_to_state, history)
     isnothing(state_idx) && error("No valid state found")
@@ -152,21 +179,32 @@ function predict(em::EpsilonMachine, history::AbstractString)
     emission_distribution(em.states[state_idx])
 end
 
+"""
+    filter_states(em::EpsilonMachine, history::AbstractString)
 
+Return the causal-state labels that can be reached while producing `history`.
+
+The returned labels are ordered from the earliest matched state to the latest
+matched state.
+"""
 function filter_states(em::EpsilonMachine, history::AbstractString)
     # check if alphabets are compatible
-    Set(unique(history)) <= Set(em.alphabet) || error("ε-machine's alphabet cannot produce this history sequence")
+    Set(unique(history)) <= Set(em.alphabet) ||
+        error("ε-machine's alphabet cannot produce this history sequence")
 
     history_to_state = histories(em)
-    isnothing(history_to_state) && error("ε-machine has no recorded state histories.")
+    isnothing(history_to_state) &&
+        error("ε-machine has no recorded state histories.")
 
     # get the best-matched state for a growing history list
     N = length(history)
     state_labels = String[]
+
     for n in 1:N
         hist = history[1:n]
         state_idx = match_history_to_state(history_to_state, hist)
         isnothing(state_idx) && continue
+
         state = em.states[state_idx]
 
         # check that the next symbol in the sequence is reachable
@@ -176,24 +214,33 @@ function filter_states(em::EpsilonMachine, history::AbstractString)
 
         push!(state_labels, state.label)
     end
+
     return state_labels
 end
 
+"""
+    match_history_to_state(history_to_state, history)
 
-function match_history_to_state(history_to_state::Dict{String, Int}, history::AbstractString)
-    # find the best state_index match for the given history sequence
-    # reduce the suffix until a match is found (otherwise return nothing)
-    max_hist_length = maximum(length, keys(history_to_state))  # max_history
+Return the index of the state matching the longest suffix of `history` that
+appears in `history_to_state`.
+
+Return `nothing` when no recorded history matches.
+"""
+function match_history_to_state(
+    history_to_state::Dict{String, Int},
+    history::AbstractString
+)
+    max_hist_length = maximum(length, keys(history_to_state))
     n = min(length(history), max_hist_length)
 
-    hist = history[end-n+1:end]
     state_idx = nothing
     while n > 0
-        hist = history[end-n+1:end]
+        hist = history[end - n + 1:end]
         state_idx = get(history_to_state, hist, nothing)
         !isnothing(state_idx) && break
         n -= 1
     end
+
     return state_idx
 end
 

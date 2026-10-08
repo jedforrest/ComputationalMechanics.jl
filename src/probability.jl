@@ -60,13 +60,24 @@ entropy(ps::AbstractArray{<:Real}) = -sum(p * log2(p) for p in ps if p > 0)
 
 const Distribution{T} = DefaultOrderedDict{T,Probability} where T
 
+"""
+    Distribution(xs, ps; alphabet=xs)
+
+Construct a probability distribution from symbols and their probabilities.
+
+The probabilities must sum to one. Entries present in `alphabet` but absent
+from `xs` are added with probability zero.
+"""
 function Distribution(
     xs::AbstractVector{T},
     ps::AbstractVector{<:Real};
     alphabet::AbstractVector{T}=xs
 ) where T
     p_total = sum(ps)
-    p_total ≈ 1 || throw(ArgumentError("Total probability must sum to 1, got $p_total"))
+    p_total ≈ 1 || throw(
+        ArgumentError("Total probability must sum to 1, got $p_total")
+    )
+
     dist = Distribution{T}(Probability(0), OrderedDict(xs .=> ps))
     for a in alphabet
         if !haskey(dist, a)
