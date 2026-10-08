@@ -26,8 +26,11 @@ fhp = feldman_hanna_process()
 
     dist_orig = stationary_distribution(gmp)
     dist_infer = stationary_distribution(machine)
-    @test float(dist_orig["A"]) ≈ float(dist_infer["S1"]) atol = 1e-2
-    @test float(dist_orig["B"]) ≈ float(dist_infer["S2"]) atol = 1e-2
+
+    # the order of states S1 and S2 can change for different test runs
+    orig_vals = sort(float.(values(dist_orig)))
+    infer_vals = sort(float.(values(dist_infer)))
+    @test orig_vals ≈ infer_vals atol = 1e-2
 
     @test statistical_complexity(gmp) ≈ statistical_complexity(machine) atol = 1e-2
     @test entropy_rate(gmp) ≈ entropy_rate(machine) atol = 1e-2
