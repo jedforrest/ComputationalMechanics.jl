@@ -12,6 +12,20 @@
 end
 
 
+@testset "Distributions" begin
+    dist = Distribution(['A', 'B', 'C'], [0.5, 0.4, 0.1])
+    @test eltype(dist) == Pair{Char, Probability}
+    dist['D']
+    @test dist['D'] == Probability(0)
+
+    dist2 = Distribution([0, 1], [0.5, 0.5]; alphabet=0:5)
+    @test dist2[1] == 0.5
+    @test length(keys(dist2)) == 6
+
+    @test_throws ArgumentError Distribution([0, 1], [0.5, 0.2])
+end
+
+
 @testset "Transition graph and causal states" begin
     @test_throws ArgumentError Transition(0, 2.0, "A")
 
@@ -36,6 +50,8 @@ end
 
     dist = emission_distribution(c1)
     @test sum(values(dist)) ≈ 1.0 atol = 1e-8
+
+    @test valid_successors(c2) == [0]
 end
 
 
@@ -44,7 +60,7 @@ end
     t2 = Transition(1, 0.5, "B")
     t3 = Transition(0, 1.0, "A")
     c1 = CausalState("A", [t1, t2])
-    c2 = CausalState("B", [t3])
+    c2 = CausalState("B", [t3], ["1"])
     states = [c1, c2]
 
     em = EpsilonMachine(states, "A")
@@ -60,6 +76,12 @@ end
     @test size(W) == (2, 2)
 
     @test ComputationalMechanics._is_unifilar(em)
+
+    # test equality of two machines with same structure
+    em2 = EpsilonMachine(states, "A")
+    @test em == em2
+
+    @test histories(em) == Dict("1" => 2)
 end
 
 

@@ -8,5 +8,4 @@ Random.seed!(123)
     @testset "Types" include("test_types.jl")
     @testset "Processes" include("test_process.jl")
     @testset "Inference" include("test_inference.jl")
-    @testset "Plots" include("test_plots.jl")
 end

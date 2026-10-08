@@ -69,20 +69,23 @@ A causal state with a label and a collection of outgoing transitions.
 # Fields
 - `label`: state identifier.
 - `transitions`: outgoing transitions from the state.
+- `histories`: (optional) sequence histories that lead to this state
 """
 struct CausalState{T}
     label::String
     transitions::Vector{Transition{T}}
+    histories::Union{Vector{String},Nothing}
 
     function CausalState(
         label,
-        transitions::AbstractVector{Transition{T}}
+        transitions::AbstractVector{Transition{T}},
+        histories=nothing
     ) where T
         # TODO validation
-        total_prob = sum(tr.probability.value for tr in transitions)
+        total_prob = sum(tr.probability for tr in transitions)
         total_prob ≈ 1 || throw(ArgumentError("Total probability of transitions must sum to 1, got $total_prob"))
 
-        new{T}(string(label), transitions)
+        new{T}(string(label), transitions, histories)
     end
 end
 
@@ -115,6 +118,20 @@ symbols(cs::CausalState) = symbol.(cs.transitions)
 Return the symbol type used by a causal state.
 """
 symboltype(::CausalState{T}) where T = T
+
+"""
+    histories(cs::CausalState)
+
+History sequences that lead to this causal state. This may be determined by inference.
+"""
+histories(cs::CausalState) = cs.histories
+
+"""
+    valid_successors(cs::CausalState)
+
+Return symbols with a non-zero probability of occuring next.
+"""
+valid_successors(cs::CausalState) = [tr.symbol for tr in cs if tr.probability > 0]
 
 ## Base extensions
 
@@ -184,7 +201,7 @@ Sample one outgoing transition from a causal state according to its transition p
 """
 function sample_next_transition(cs::CausalState)
     trs = transitions(cs)
-    W = Weights(Float64.(probability.(trs)))
+    W = Weights(float.(probability.(trs)))
     sample(trs, W)
 end
 
@@ -193,10 +210,7 @@ end
 
 Return the distribution of emitted symbols from a causal state.
 """
-function emission_distribution(cs::CausalState{T}) where T
-    dist = Dict{T,Probability}()
-    for t in transitions(cs)
-        dist[t.symbol] = get(dist, t.symbol, 0.) + t.probability
-    end
-    return dist
+function emission_distribution(cs::CausalState{T}; alphabet::AbstractVector{T}=symbols(cs)) where T
+    trs = transitions(cs)
+    Distribution(symbol.(trs), probability.(trs); alphabet)
 end

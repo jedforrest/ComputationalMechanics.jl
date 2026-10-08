@@ -18,6 +18,7 @@ end
 ## Base extensions
 
 # Promotion
+Base.convert(::Type{Probability}, p::Probability) = p
 Base.convert(::Type{Probability}, x::Real) = Probability(x)
 Base.convert(::Type{T}, p::Probability) where {T<:Real} = convert(T, p.value)
 Base.promote_rule(::Type{Probability}, ::Type{<:Real}) = Float64
@@ -36,6 +37,8 @@ Base.:-(p::Probability, q::Probability) = Probability(p.value - q.value)
 Base.:*(p::Probability, q::Probability) = Probability(p.value * q.value)
 Base.:/(p::Probability, q::Probability) = Probability(p.value / q.value)
 
+Base.isfinite(::Probability) = true
+
 Base.show(io::IO, p::Probability) = print(io, "P($(round(p.value, digits=2)))")
 
 ## Entropy
@@ -52,3 +55,34 @@ entropy(p::Real) = -(p * log2(p))
 Compute the Shannon entropy of a probability distribution represented by a vector of probabilities.
 """
 entropy(ps::AbstractArray{<:Real}) = -sum(p * log2(p) for p in ps if p > 0)
+
+## Distributions
+
+const Distribution{T} = DefaultOrderedDict{T,Probability} where T
+
+"""
+    Distribution(xs, ps; alphabet=xs)
+
+Construct a probability distribution from symbols and their probabilities.
+
+The probabilities must sum to one. Entries present in `alphabet` but absent
+from `xs` are added with probability zero.
+"""
+function Distribution(
+    xs::AbstractVector{T},
+    ps::AbstractVector{<:Real};
+    alphabet::AbstractVector{T}=xs
+) where T
+    p_total = sum(ps)
+    p_total ≈ 1 || throw(
+        ArgumentError("Total probability must sum to 1, got $p_total")
+    )
+
+    dist = Distribution{T}(Probability(0), OrderedDict(xs .=> ps))
+    for a in alphabet
+        if !haskey(dist, a)
+            dist[a] = 0
+        end
+    end
+    return dist
+end

@@ -4,7 +4,7 @@
 
     @test num_states(gmp) == 2
     @test statistical_complexity(gmp) ≈ 0.9183 atol = 1e-4
-    @test entropy_rate(gmp) ≈ 0.6666 atol = 1e-4
+    @test entropy_rate(gmp) ≈ 0.6667 atol = 1e-4
 
     pi_a(p) = 1.0 / (2.0 - p)
     pi_b(p) = (1.0 - p) / (2.0 - p)
@@ -16,6 +16,9 @@
     gmp = golden_mean_process(p)
     dist = stationary_distribution(gmp)
     @test dist["A"] ≈ pi_a(p) && dist["B"] ≈ pi_b(p)
+
+    hist = histories(gmp)
+    @test hist == Dict("0" => 1, "1" => 2)
 end
 
 
@@ -31,7 +34,7 @@ end
     bcp = biased_coin_process(0.7)
     @test statistical_complexity(bcp) ≈ 0
 
-    pp = periodic_process([0, 1, 1])
+    pp = periodic_process(1:5)
     @test entropy_rate(pp) ≈ 0
 end
 
@@ -40,7 +43,7 @@ end
     ep = even_process(0.6)
 
     @test simulate(String, ep, 10) isa String
-    @test simulate(Vector, ep, 10) isa Vector{Int}
+    @test simulate(Vector, ep, 10) isa Vector{Char}
 
     seq = simulate(ep, 1000)
     @test length(seq) == 1000

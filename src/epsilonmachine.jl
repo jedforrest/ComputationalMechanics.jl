@@ -17,10 +17,10 @@ mutable struct EpsilonMachine{T}
     graph::MetaGraph
 
     """
-        EpsilonMachine(alphabet, states, startstate, stationary_distribution=nothing)
+        EpsilonMachine(alphabet, states, startstate)
 
-    Construct an ε-machine from an alphabet, a vector of causal states, a start state label,
-    and an optional stationary distribution.
+    Construct an ε-machine from an alphabet, a vector of causal states, and optional
+    starting state.
 
     Throws `ArgumentError` if the machine is not unifilar.
     """
@@ -61,9 +61,9 @@ end
 
 function Base.show(io::IO, em::EpsilonMachine)
     str = "EpsilonMachine{$(eltype(em))}\n"
-    str *="  alphabet: $(collect(em.alphabet))\n"
-    str *="  states: $(num_states(em))\n"
-    str *="  transitions: $(num_transitions(em))"
+    str *= "  alphabet: $(collect(em.alphabet))\n"
+    str *= "  states: $(num_states(em))\n"
+    str *= "  transitions: $(num_transitions(em))"
     print(io, str)
 end
 
@@ -82,13 +82,54 @@ Base.eltype(::EpsilonMachine{T}) where T = T
 
 Base.getindex(em::EpsilonMachine, label) = em.graph[label]
 
-##
+Base.:(==)(em1::EpsilonMachine, em2::EpsilonMachine) = isequal(em1.alphabet, em2.alphabet) &&
+    isequal(em1.startstate, em2.startstate) &&
+    isequal(em1.states, em2.states)
 
-get_states(em::EpsilonMachine) = em.states
+## Core properties and functions
 
-get_transitions(em::EpsilonMachine) = collect(Iterators.flatten(transitions.(em.states)))
+"""
+    states(em::EpsilonMachine)
 
+Return the causal states comprising the ε-machine.
+"""
+states(em::EpsilonMachine) = em.states
+
+"""
+    transitions(em::EpsilonMachine)
+
+Return all directed transitions in the ε-machine graph.
+"""
+transitions(em::EpsilonMachine) =
+    collect(Iterators.flatten(transitions.(em.states)))
+
+"""
+    labels(em::EpsilonMachine)
+
+Return the labels of all causal states in the ε-machine.
+"""
 labels(em::EpsilonMachine) = label.(em.states)
+
+"""
+    histories(em::EpsilonMachine)
+
+Return a mapping from recorded history strings to the indices of the states
+that contain those histories.
+
+If no state histories have been recorded, return `nothing`.
+"""
+function histories(em::EpsilonMachine)
+    history = Dict{String, Int}()
+    for (i, state) in enumerate(states(em))
+        state_hist = histories(state)
+        isnothing(state_hist) && continue
+
+        for h in state_hist
+            history[h] = i
+        end
+    end
+    return isempty(history) ? nothing : history
+end
 
 """
     transition_matrix(em::EpsilonMachine)
@@ -96,16 +137,6 @@ labels(em::EpsilonMachine) = label.(em.states)
 Return the weighted transition matrix of the ε-machine graph.
 """
 transition_matrix(em::EpsilonMachine) = float.(Graphs.weights(em.graph))
-
-"""
-    simulate(em::EpsilonMachine, n::Int)
-
-Simulate the ε-machine for `n` steps, returning a string of emitted symbols.
-"""
-simulate(em::EpsilonMachine, n::Int) = simulate(String, em, n)
-simulate(::Type{String}, em::EpsilonMachine, n::Int) = join(Iterators.take(em, n))
-simulate(::Type{Vector}, em::EpsilonMachine, n::Int) = collect(Iterators.take(em, n))
-
 
 
 """
@@ -117,10 +148,102 @@ function stationary_distribution(em::EpsilonMachine)
     # get eigenvalue decomposition of transition matrix and normalise
     P = transition_matrix(em)
     vals, vecs = eigen(P')
-    p = real(vecs[:, argmin(abs.(vals .- 1))])
-    p ./= sum(p)
-    return Dict(label.(em.states) .=> p)
+    ps = real(vecs[:, argmin(abs.(vals .- 1))])
+    ps ./= sum(ps)
+    return Distribution(label.(em.states), ps)
 end
+
+
+"""
+    simulate(em::EpsilonMachine, n::Int)
+
+Simulate the ε-machine for `n` steps, returning a string of emitted symbols.
+"""
+simulate(em::EpsilonMachine, n::Int) = simulate(String, em, n)
+simulate(::Type{String}, em::EpsilonMachine, n::Int) = join(Iterators.take(em, n))
+simulate(::Type{Vector}, em::EpsilonMachine, n::Int) = collect(Iterators.take(em, n))
+
+
+function predict(em::EpsilonMachine, history::AbstractString)
+    # check if alphabets are compatible
+    Set(unique(history)) <= Set(em.alphabet) ||
+        error("ε-machine's alphabet cannot produce this history sequence")
+
+    history_to_state = histories(em)
+    isnothing(history_to_state) &&
+        error("ε-machine has no recorded state histories.")
+
+    state_idx = match_history_to_state(history_to_state, history)
+    isnothing(state_idx) && error("No valid state found")
+
+    emission_distribution(em.states[state_idx])
+end
+
+"""
+    filter_states(em::EpsilonMachine, history::AbstractString)
+
+Return the causal-state labels that can be reached while producing `history`.
+
+The returned labels are ordered from the earliest matched state to the latest
+matched state.
+"""
+function filter_states(em::EpsilonMachine, history::AbstractString)
+    # check if alphabets are compatible
+    Set(unique(history)) <= Set(em.alphabet) ||
+        error("ε-machine's alphabet cannot produce this history sequence")
+
+    history_to_state = histories(em)
+    isnothing(history_to_state) &&
+        error("ε-machine has no recorded state histories.")
+
+    # get the best-matched state for a growing history list
+    N = length(history)
+    state_labels = String[]
+
+    for n in 1:N
+        hist = history[1:n]
+        state_idx = match_history_to_state(history_to_state, hist)
+        isnothing(state_idx) && continue
+
+        state = em.states[state_idx]
+
+        # check that the next symbol in the sequence is reachable
+        if n < N && !(history[n + 1] in valid_successors(state))
+            error("The subsequence '$(history[1:n+1])' is not possible for this ε-machine.")
+        end
+
+        push!(state_labels, state.label)
+    end
+
+    return state_labels
+end
+
+"""
+    match_history_to_state(history_to_state, history)
+
+Return the index of the state matching the longest suffix of `history` that
+appears in `history_to_state`.
+
+Return `nothing` when no recorded history matches.
+"""
+function match_history_to_state(
+    history_to_state::Dict{String, Int},
+    history::AbstractString
+)
+    max_hist_length = maximum(length, keys(history_to_state))
+    n = min(length(history), max_hist_length)
+
+    state_idx = nothing
+    while n > 0
+        hist = history[end - n + 1:end]
+        state_idx = get(history_to_state, hist, nothing)
+        !isnothing(state_idx) && break
+        n -= 1
+    end
+
+    return state_idx
+end
+
 
 
 ## Validation
@@ -143,20 +266,20 @@ function _is_unifilar(em::EpsilonMachine)
     return true
 end
 
-## Structural measures
+## Structural and statistical measures
 """
     num_states(em::EpsilonMachine)
 
 Return the number of causal states in the ε-machine.
 """
-num_states(em::EpsilonMachine) = length(get_states(em))
+num_states(em::EpsilonMachine) = length(states(em))
 
 """
     num_transitions(em::EpsilonMachine)
 
 Return the number of transitions in the ε-machine graph.
 """
-num_transitions(em::EpsilonMachine) = length(get_transitions(em))
+num_transitions(em::EpsilonMachine) = length(transitions(em))
 
 """
     alphabet_size(em::EpsilonMachine)
@@ -173,7 +296,7 @@ number of states.
 """
 topological_complexity(em::EpsilonMachine) = log2(num_states(em))
 
-## Core measures
+
 """
     statistical_complexity(em::EpsilonMachine)
 

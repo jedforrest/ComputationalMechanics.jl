@@ -11,33 +11,11 @@ transducer = fit(TransCSSR(), u, y;
     alpha = 0.001
 )
 
-predict(machine, history) # TODO
+predict(machine, history)
 simulate(machine, 10_000)
-filter(machine, y) # TODO
+filter_states(machine, y)
 
 statistical_complexity(machine)
 entropy_rate(machine)
 
 plot(machine)
-
-#-------------------------------------------------------------------------------------------
-using ComputationalMechanics
-
-
-using PlotGraphviz, Graphs, MetaGraphsNext
-ep = even_process(0.6)
-fhp = feldman_hanna_process()
-
-
-plot_graphviz(wg, attr;
-    edge_label=true,
-    landscape=true,
-)
-
-plot_machine(ep)
-to_dot_file(ep, "./test/ep.dot")
-
-plot_machine(fhp)
-to_dot_file(fhp, "./test/fhp.dot")
-
-plot_machine(machine)
