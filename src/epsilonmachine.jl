@@ -180,14 +180,17 @@ function predict(em::EpsilonMachine, history::AbstractString)
 end
 
 """
-    filter_states(em::EpsilonMachine, history::AbstractString)
+    filter_states(em::EpsilonMachine, history::AbstractString; strict=true)
 
-Return the causal-state labels that can be reached while producing `history`.
+Returns a last of causal-state labels that generate the supplied `history`.
 
 The returned labels are ordered from the earliest matched state to the latest
 matched state.
+
+If `strict=true` then it will also check that the supplied history is valid for the given
+epsilon machine.
 """
-function filter_states(em::EpsilonMachine, history::AbstractString)
+function filter_states(em::EpsilonMachine, history::AbstractString; strict=true)
     # check if alphabets are compatible
     Set(unique(history)) <= Set(em.alphabet) ||
         error("ε-machine's alphabet cannot produce this history sequence")
@@ -208,8 +211,10 @@ function filter_states(em::EpsilonMachine, history::AbstractString)
         state = em.states[state_idx]
 
         # check that the next symbol in the sequence is reachable
-        if n < N && !(history[n + 1] in valid_successors(state))
-            error("The subsequence '$(history[1:n+1])' is not possible for this ε-machine.")
+        if strict && n < N
+            if !(history[n + 1] in valid_successors(state))
+                error("The subsequence '$(history[1:n+1])' is not possible for this ε-machine.")
+            end
         end
 
         push!(state_labels, state.label)

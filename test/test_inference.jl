@@ -60,15 +60,15 @@ end
     dist = predict(fhp, "AAAA")
     @test dist['A'] == 0.1875 && dist['B'] == 0.8125
 
-    @test_throws ErrorException predict(fhp, "1001")
-    @test_throws ErrorException predict(fhp, "B")
+    @test_throws ErrorException predict(fhp, "1001") # wrong alphabet
+    @test_throws ErrorException predict(fhp, "B") # invalid starting state for this machine
 end
 
 
 @testset "Filtering" begin
     @test filter_states(gmp, "0") == ["A"]
     @test filter_states(gmp, "0010") == ["A", "A", "B", "A"]
-    @test_throws ErrorException filter_states(gmp, "1111") # this is not be a valid sequence
+    @test_throws ErrorException filter_states(gmp, "1111", strict=true) # invalid sequence
 
     @test filter_states(fhp, "BAABA") == ["BA", "BAA", "BAAB", "BA"]
     @test filter_states(fhp, "AAAAAAAAAA") == fill("AAA", 8)
