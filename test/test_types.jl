@@ -60,7 +60,7 @@ end
     t2 = Transition(1, 0.5, "B")
     t3 = Transition(0, 1.0, "A")
     c1 = CausalState("A", [t1, t2])
-    c2 = CausalState("B", [t3], ["1"])
+    c2 = CausalState("B", [t3])
     states = [c1, c2]
 
     em = EpsilonMachine(states, "A")
@@ -81,7 +81,7 @@ end
     em2 = EpsilonMachine(states, "A")
     @test em == em2
 
-    @test histories(em) == Dict("1" => 2)
+    @test histories(em) === nothing
 end
 
 

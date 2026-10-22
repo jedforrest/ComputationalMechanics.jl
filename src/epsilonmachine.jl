@@ -114,12 +114,12 @@ labels(em::EpsilonMachine) = label.(em.states)
     histories(em::EpsilonMachine)
 
 Return a mapping from recorded history strings to the indices of the states
-that contain those histories.
+that contain those histories. Each history should only point to one causal state.
 
 If no state histories have been recorded, return `nothing`.
 """
 function histories(em::EpsilonMachine)
-    history = Dict{String, Int}()
+    history = Dict()
     for (i, state) in enumerate(states(em))
         state_hist = histories(state)
         isnothing(state_hist) && continue
@@ -159,7 +159,7 @@ end
 
 Simulate the ε-machine for `n` steps, returning a string of emitted symbols.
 """
-simulate(em::EpsilonMachine, n::Int) = simulate(String, em, n)
+simulate(em::EpsilonMachine, n::Int) = simulate(Vector, em, n)
 simulate(::Type{String}, em::EpsilonMachine, n::Int) = join(Iterators.take(em, n))
 simulate(::Type{Vector}, em::EpsilonMachine, n::Int) = collect(Iterators.take(em, n))
 

@@ -74,7 +74,7 @@ A causal state with a label and a collection of outgoing transitions.
 struct CausalState{T}
     label::String
     transitions::Vector{Transition{T}}
-    histories::Union{Vector{String},Nothing}
+    histories::Union{Vector{Vector{T}},Nothing}
 
     function CausalState(
         label,

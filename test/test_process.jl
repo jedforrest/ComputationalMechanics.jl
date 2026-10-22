@@ -18,7 +18,7 @@
     @test dist["A"] ≈ pi_a(p) && dist["B"] ≈ pi_b(p)
 
     hist = histories(gmp)
-    @test hist == Dict("0" => 1, "1" => 2)
+    @test hist == Dict([0] => 1, [1] => 2)
 end
 
 
@@ -43,15 +43,15 @@ end
     ep = even_process(0.6)
 
     @test simulate(String, ep, 10) isa String
-    @test simulate(Vector, ep, 10) isa Vector{Char}
+    @test simulate(Vector, ep, 10) isa Vector{Int}
 
-    seq = simulate(ep, 1000)
+    seq = simulate(String, ep, 1000)
     @test length(seq) == 1000
     @test !occursin("010", seq)  # no odd sequences of 1s
 
     ep.startstate = "B"
     seq = simulate(ep, 10)
-    @test seq[1] == '1'  # state B always returns 1
+    @test seq[1] == 1  # state B always returns 1
 end
 
 

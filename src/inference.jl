@@ -38,7 +38,10 @@ function Base.show(io::IO, result::InferenceResult)
     print(io, str)
 end
 
-# TODO history stats type
+
+# history stats type alias
+const HistoryStats{T} = Dict{Vector{T},Dict{T,Int}} where T
+
 
 """
     infer_machine(alg::CSSR, sequence; alphabet=nothing)
@@ -48,11 +51,11 @@ the set of symbols observed in `sequence`.
 """
 function infer_machine(
     ::CSSR,
-    sequence;
-    alphabet=sort(unique(sequence)),
+    sequence,
+    alphabet=sort(unique(sequence));
     max_history=6,
     min_count=5,
-    alpha=0.05,
+    alpha=0.05,  # TODO not actually used, thread through functions below
     statistical_test=:chi2,  # chi2 | ks | g
 )
     # validate parameters
@@ -67,14 +70,14 @@ function infer_machine(
     n_syms < min_required && throw(ArgumentError(
         "Provided sequence has $n_syms symbols, " *
             "but $min_required are required for the CSSR algorithm."
-        )
+    )
     )
 
     # covert vector into a sequence string
-    if sequence isa AbstractVector
-        sequence = join(sequence)
-        alphabet = collect(join(alphabet))  # TODO allow non-char alphabets
-    end
+    # if sequence isa AbstractVector
+    #     sequence = join(sequence)
+    #     alphabet = collect(join(alphabet))  # TODO allow non-char alphabets
+    # end
 
     # Phase I: build suffix automaton on the sequence
     automaton = SuffixAutomaton(sequence)
@@ -114,14 +117,14 @@ often each symbol followed it. `count` for a history is `sum(values(dist))`.
 function history_stats(automaton::SuffixAutomaton{T}; max_depth::Integer=5) where {T}
     data = automaton.data
     n = length(data)
-    stats = Dict{String,Dict{T,Int}}()
+    stats = HistoryStats{T}()
 
     for j in 1:n
         current = automaton.root
         for len in 1:min(max_depth, n-j)      # stop one short of the end: a next symbol must exist
             symbol = data[j+len-1]
             current = current.transitions[symbol]
-            h = join(data[j:(j+len-1)])
+            h = data[j:(j+len-1)]
             nxt = data[j+len]
             dist = get!(Dict{T,Int}, stats, h)
             dist[nxt] = get(dist, nxt, 0) + 1
@@ -133,7 +136,7 @@ function history_stats(automaton::SuffixAutomaton{T}; max_depth::Integer=5) wher
     for s in data
         empty_dist[s] = get(empty_dist, s, 0) + 1
     end
-    stats[""] = empty_dist
+    stats[T[]] = empty_dist
 
     return stats
 end
@@ -149,12 +152,12 @@ end
 deeper lookup than `cfg.max_history` (e.g. `cfg.max_history` is small relative
 to how much data you have) -- otherwise pass the automaton it came from.
 """
-function _sufficiency_phase(hist_stats::Dict{String,Dict{T,Int}}, alphabet, min_count) where T
-    partition = StatePartition()
+function _sufficiency_phase(hist_stats::HistoryStats{T}, alphabet, min_count) where T
+    partition = StatePartition{T}()
 
-    all_histories = String[]
-    sync_histories = String[]
-    nonsync_histories = String[]
+    all_histories = Vector{T}[]
+    sync_histories = Vector{T}[]
+    nonsync_histories = Vector{T}[]
 
     # hist_stats is a dict of histories to next-value distributions
     for (hist, dist) in hist_stats
@@ -222,7 +225,7 @@ function _is_synchronizing_core(history, history_stats; alphabet, min_count)
     # Check extensions: (a,) + history for each a in alphabet
     extension_dists = Dict{eltype(history),Int}[]
     for a in alphabet
-        extended = string(a) * history  # prepend
+        extended = [a; history]  # prepend
         ext_dist = get(history_stats, extended, nothing)
 
         isnothing(ext_dist) && continue
@@ -298,7 +301,7 @@ end
 
 
 """Find a state for a non-synchronizing history, or `nothing` if none matches."""
-function _find_state_for_history(partition::StatePartition, history, hist_stats)
+function _find_state_for_history(partition::StatePartition, history, hist_stats::HistoryStats)
     # Longest proper suffix already assigned to a state
     for i in 2:length(history)
         state = get_state(partition, history[i:end])
@@ -324,13 +327,13 @@ Group histories by distribution similarity, mutating `partition`.
 """
 function _group_by_distribution!(
     partition::StatePartition,
-    hists::AbstractVector{<:AbstractString},
-    hist_stats::Dict{String,Dict{A,Int}},
+    hists::Vector{Vector{T}},
+    hist_stats::HistoryStats{T},
     min_count::Int
-) where A
+) where T
     isempty(hists) && return partition
 
-    entries = @NamedTuple{history::String, counts::Dict{A,Int}}[]
+    entries = @NamedTuple{history::Vector{T}, counts::Dict{T,Int}}[]
     for h in hists
         dist = hist_stats[h]
         count = sum(values(dist); init=0)
@@ -348,13 +351,13 @@ function _group_by_distribution!(
 
     # Also reject if any symbol's proportion varies too much across histories
     if all_homogeneous
-        all_keys = Set{A}()
+        all_keys = Set{T}()
         for e in entries
             union!(all_keys, keys(e.counts))
         end
 
-        min_props = Dict{A,Float64}()
-        max_props = Dict{A,Float64}()
+        min_props = Dict{T,Float64}()
+        max_props = Dict{T,Float64}()
         for e in entries
             total = sum(values(e.counts))
             total < 1 && continue
@@ -413,9 +416,9 @@ end
 function _state_distribution(
     state_id,
     partition,
-    hist_stats::Dict{String,Dict{A,Int}},
-) where {A}
-    aggregate = Dict{A,Int}()
+    hist_stats::HistoryStats{T},
+) where T
+    aggregate = Dict{T,Int}()
     for h in get_histories(partition, state_id)
         dist = hist_stats[h]
         mergewith!(+, aggregate, dist)
@@ -432,7 +435,7 @@ Merge states whose aggregate next-symbol distributions are indistinguishable,
 until no mergeable pair remains. Uses a lenient merge threshold (≥ 0.1) to avoid
 over-splitting. Returns a new partition; the input is left unchanged.
 """
-function _determinism_phase(partition::StatePartition, hist_stats, merge_sig=0.1)
+function _determinism_phase(partition::StatePartition, hist_stats::HistoryStats, merge_sig=0.1)
     current = copy(partition)
     while true
         pair = _find_mergeable_pair(current, hist_stats, merge_sig)
@@ -444,7 +447,7 @@ end
 
 
 """Return the first pair of states with indistinguishable distributions, or `nothing`."""
-function _find_mergeable_pair(partition, hist_stats, significance)
+function _find_mergeable_pair(partition, hist_stats::HistoryStats, significance)
     ids = state_ids(partition)
     for i in 1:(length(ids)-1)
         dist1 = _state_distribution(ids[i], partition, hist_stats)
@@ -464,8 +467,7 @@ end
 _label(s) = "S$s"
 
 """Construct an ε-machine from a state partition."""
-function _build_machine(partition, hist_stats, alphabet, max_history)
-    A = eltype(alphabet)
+function _build_machine(partition::StatePartition, hist_stats::HistoryStats{T}, alphabet, max_history) where T
 
     ids = state_ids(partition)
     if isempty(ids)
@@ -473,7 +475,7 @@ function _build_machine(partition, hist_stats, alphabet, max_history)
         assign!(partition, "", 1)
     end
 
-    causal_states = CausalState{A}[]
+    causal_states = CausalState{T}[]
 
     for state_id in ids
         hists = get_histories(partition, state_id)
@@ -482,10 +484,10 @@ function _build_machine(partition, hist_stats, alphabet, max_history)
         total = sum(values(symbol_counts); init=0)
         if total == 0
             total = length(alphabet)
-            symbol_counts = Dict{A,Int}(a => 1 for a in alphabet)
+            symbol_counts = Dict{T,Int}(a => 1 for a in alphabet)
         end
 
-        transitions = Transition{A}[]
+        transitions = Transition{T}[]
 
         for (sym, cnt) in symbol_counts
             target = _find_target_state(hists, sym, partition; max_history)

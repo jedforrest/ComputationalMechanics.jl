@@ -4,13 +4,13 @@
 Bidirectional mapping between histories and the causal states CSSR assigns them
 to, used by `_sufficiency_phase`, `_determinism_phase`, and `_build_machine`.
 """
-mutable struct StatePartition
-    history_to_state::Dict{String,Int}
-    state_to_histories::Dict{Int,Vector{String}}
+mutable struct StatePartition{T}
+    history_to_state::Dict{Vector{T},Int}
+    state_to_histories::Dict{Int,Vector{Vector{T}}}
     next_id::Int
 end
 
-StatePartition() = StatePartition(Dict{String,Int}(), Dict{Int,Vector{String}}(), 0)
+StatePartition{T}() where T = StatePartition{T}(Dict{Vector{T},Int}(), Dict{Int,Vector{Vector{T}}}(), 0)
 
 """
     new_state_id!(partition) -> Int
@@ -32,7 +32,7 @@ Assign `history` to `state_id`, moving it out of any state it was previously
 assigned to (removing that state entirely from `state_ids` if it's left with
 no histories). Assigning a history to the state it's already in is a no-op.
 """
-function assign!(partition::StatePartition, history, state_id)
+function assign!(partition::StatePartition{T}, history, state_id) where T
     old_state = get(partition.history_to_state, history, nothing)
     if old_state !== nothing
         old_state == state_id && return partition   # already there
@@ -43,7 +43,7 @@ function assign!(partition::StatePartition, history, state_id)
     end
 
     partition.history_to_state[history] = state_id
-    new_list = get!(() -> String[], partition.state_to_histories, state_id)
+    new_list = get!(() -> Vector{T}[], partition.state_to_histories, state_id)
     push!(new_list, history)
     return partition
 end
@@ -57,17 +57,17 @@ assigned yet.
 get_state(partition::StatePartition, history) = get(partition.history_to_state, history, nothing)
 
 """
-    get_histories(partition, state_id) -> Vector{String}
+    get_histories(partition, state_id) -> Vector{Vector{T}}
 
 All histories currently assigned to `state_id`, or an empty vector if the id
 doesn't exist (e.g. it was merged away). Returns the partition's own internal
 vector -- treat it as read-only; mutate via `assign!`/`merge_states!` instead.
 """
-get_histories(partition::StatePartition, state_id) =
-    get(partition.state_to_histories, state_id, String[])
+get_histories(partition::StatePartition{T}, state_id) where T =
+    get(partition.state_to_histories, state_id, Vector{T}[])
 
 """
-    state_ids(partition) -> Vector{String}
+    state_ids(partition) -> Vector{Vector{T}}
 
 Every state id that currently has at least one assigned history.
 """
@@ -80,14 +80,14 @@ Merge every state in `ids` into `first(ids)`: all of their histories are
 reassigned to that survivor, and the other ids are removed from `state_ids`.
 No-op if `ids` has fewer than 2 elements.
 """
-function merge_states!(partition::StatePartition, ids::AbstractVector)
+function merge_states!(partition::StatePartition{T}, ids::AbstractVector) where T
     length(ids) < 2 && return partition
     survivor = first(ids)
-    survivor_list = get!(() -> String[], partition.state_to_histories, survivor)
+    survivor_list = get!(() -> Vector{T}[], partition.state_to_histories, survivor)
 
     for id in ids[2:end]
         id == survivor && continue
-        histories = get(partition.state_to_histories, id, String[])
+        histories = get(partition.state_to_histories, id, Vector{T}[])
         for h in histories
             partition.history_to_state[h] = survivor
         end
@@ -104,10 +104,10 @@ An independent copy: mutating the result (via `assign!`/`merge_states!`) never
 affects the original. Used by `_determinism_phase` to iteratively merge states
 without disturbing the partition `_sufficiency_phase` produced.
 """
-function Base.copy(partition::StatePartition)
+function Base.copy(partition::StatePartition{T}) where T
     return StatePartition(
         copy(partition.history_to_state),
-        Dict{Int,Vector{String}}(k => copy(v) for (k, v) in partition.state_to_histories),
+        Dict{Int,Vector{Vector{T}}}(k => copy(v) for (k, v) in partition.state_to_histories),
         partition.next_id,
     )
 end
