@@ -83,6 +83,8 @@ struct CausalState{T}
     ) where T
         # TODO validation
         total_prob = sum(tr.probability for tr in transitions)
+        # @show total_prob.value
+        # @show [tr.probability.value for tr in transitions]
         total_prob ≈ 1 || throw(ArgumentError("Total probability of transitions must sum to 1, got $total_prob"))
 
         new{T}(string(label), transitions, histories)
