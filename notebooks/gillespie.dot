@@ -1,0 +1,25 @@
+digraph G {
+  graph [rankdir="LR"];
+  node [color="black",fontsize="7.0",width="0.25",height="0.25",fixedsize="true",shape="circle",style="filled",fillcolor="lightblue"];
+  edge [arrowsize="0.5",arrowtype="normal",fontsize="7.0",color="black",fontcolor="blue"];
+  S3 [label="S3"];
+  S2 [label="S2"];
+  S1 [label="S1"];
+  S4 [label="S4"];
+  S5 [label="S5"];
+  S6 [label="S6"];
+  S7 [label="S7"];
+  S3 -> S6 [weight="1.0",label="6 | P(1.0)"];
+  S2 -> S2 [weight="0.016260162601626018",label="4 | P(0.02)"];
+  S2 -> S1 [weight="0.44715447154471544",label="5 | P(0.45)"];
+  S1 -> S2 [weight="0.6759259259259259",label="4 | P(0.68)"];
+  S1 -> S5 [weight="0.013888888888888888",label="2 | P(0.01)"];
+  S1 -> S6 [weight="0.3101851851851852",label="6 | P(0.31)"];
+  S4 -> S2 [weight="0.64",label="4 | P(0.64)"];
+  S4 -> S5 [weight="0.36",label="2 | P(0.36)"];
+  S5 -> S4 [weight="1.0",label="3 | P(1.0)"];
+  S6 -> S3 [weight="0.3037974683544304",label="7 | P(0.3)"];
+  S6 -> S1 [weight="0.6962025316455697",label="5 | P(0.7)"];
+  S7 -> S1 [weight="0.8181818181818182",label="5 | P(0.82)"];
+  S7 -> S4 [weight="0.18181818181818182",label="3 | P(0.18)"];
+}
