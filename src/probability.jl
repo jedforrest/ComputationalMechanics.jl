@@ -25,6 +25,7 @@ Base.promote_rule(::Type{Probability}, ::Type{<:Real}) = Float64
 
 # Comparison
 Base.:(==)(p::Probability, q::Probability) = p.value == q.value
+Base.:(<)(p::Probability, q::Probability) = <(p.value, q.value)
 Base.isless(p::Probability, q::Probability) = isless(p.value, q.value)
 
 # Convenience
